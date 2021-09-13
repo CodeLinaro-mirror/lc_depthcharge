@@ -41,6 +41,10 @@
 #define PAGE_3		(0x16 >> 1)	/* primary TCPCI registers */
 #define PAGE_7		(0x1e >> 1)	/* mapped flash page */
 
+#define P0_REG_SM		0x06
+#define P0_REG_REV		0x62
+#define P0_REG_REV_MASK		0xf0
+#define P0_REG_REV_SHIFT	4
 #define P0_ROM_CTRL		0xef
 #define P0_ROM_CTRL_LOAD_DONE	0xc0	/* MTP load done */
 
@@ -53,6 +57,9 @@
 /* NOTE: on 8751 A3 silicon, P1_SPI_WP_EN reads back inverted! */
 #define PS8751_P1_SPI_WP_EN	0x10	/* WP enable bit */
 #define PS8751_P1_SPI_WP_DIS	0x00	/* WP disable "bit" */
+
+#define PS8805_P0_REG_REV_CHIP_REVISION_A2	0x0
+#define PS8805_P0_REG_REV_CHIP_REVISION_A3	0xA
 
 #define PS8805_P2_SPI_WP	0x2a
 #define PS8805_P2_SPI_WP_EN	0x10	/* WP enable bit */
@@ -83,6 +90,8 @@
 
 #define P3_VENDOR_ID_LOW	0x00
 #define P3_CHIP_WAKEUP		0xa0
+
+#define PS8751_P0_REG_SM_CHIP_REVISION_A3	0x80
 
 #define PS8751_P3_I2C_DEBUG		0xa0
 #define PS8751_P3_I2C_DEBUG_DEFAULT	0x31
@@ -871,6 +880,41 @@ static int __must_check ps8751_get_hw_version(Ps8751 *me, uint8_t *version)
 		return status;
 	}
 	*version = (high << 4) | low;
+
+	/*
+	 * From the PS8xxx TCPC Family Chip Revision Guide, Aug. 10 2021:
+	 *
+	 * The PS8805-A2 and PS8805-A3 both return 0x0A02 for the hardware
+	 * revision.  Use the the revision register to determine which chip
+	 * type is actually present.
+	 * Page 0, 0x62, bits [7:4]: 0xA0 = A3 chip, 0x00 = A2 chip
+	 *
+	 * The PS8755-A3 returns 0x0A02 for the hardware revision. A value of
+	 * 0x80 in Page 0, register 6, confirms the chip is revision A3.
+	 */
+	if (me->chip_type == CHIP_PS8805 && *version == 0xA2) {
+		uint8_t reg_rev;
+		status = read_reg(me, PAGE_0, P0_REG_REV, &reg_rev);
+		if (status < 0) {
+			printf("%s: read P0_REG_REV failed\n", me->chip_name);
+			return status;
+		}
+
+		reg_rev &= P0_REG_REV_MASK;
+		reg_rev >>= P0_REG_REV_SHIFT;
+		if (reg_rev == PS8805_P0_REG_REV_CHIP_REVISION_A3)
+			*version = 0xA3;
+	} else if (me->chip_type == CHIP_PS8755 && *version == 0xA2) {
+		uint8_t reg_sm;
+		status = read_reg(me, PAGE_0, P0_REG_SM, &reg_sm);
+		if (status < 0) {
+			printf("%s: read P0_REG_SM failed\n", me->chip_name);
+			return status;
+		}
+		if (reg_sm == PS8751_P0_REG_SM_CHIP_REVISION_A3)
+			*version = 0xA3;
+	}
+
 	return 0;
 }
 
