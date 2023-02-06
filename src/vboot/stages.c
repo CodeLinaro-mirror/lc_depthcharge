@@ -193,6 +193,16 @@ int vboot_select_and_load_kernel(void)
 	printf("Calling VbSelectAndLoadKernel().\n");
 	vb2_error_t res = VbSelectAndLoadKernel(ctx, &kparams);
 
+	if (CONFIG(WIDEVINE_PROVISION) && !vboot_in_recovery()) {
+		uint32_t tpm_rv = secdata_widevine_prepare(ctx);
+		if (tpm_rv) {
+			printf("failed to prepare widevine data: %#x\n",
+			       tpm_rv);
+			vb2api_fail(ctx, VB2_RECOVERY_WIDEVINE_PREPARE, tpm_rv);
+			cold_reboot();
+		}
+	}
+
 	if (res == VB2_REQUEST_REBOOT_EC_TO_RO) {
 		printf("EC Reboot requested. Doing cold reboot.\n");
 		if (ec && ec->reboot_to_ro)

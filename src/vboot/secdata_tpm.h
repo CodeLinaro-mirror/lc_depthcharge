@@ -28,6 +28,7 @@ uint32_t secdata_firmware_write(struct vb2_context *ctx);
 uint32_t secdata_kernel_write(struct vb2_context *ctx);
 uint32_t secdata_kernel_lock(struct vb2_context *ctx);
 uint32_t secdata_fwmp_read(struct vb2_context *ctx);
+uint32_t secdata_widevine_prepare(struct vb2_context *ctx);
 
 #define ANDROID_PVMFW_BOOT_PARAMS_NV_INDEX 0x3fff0a
 

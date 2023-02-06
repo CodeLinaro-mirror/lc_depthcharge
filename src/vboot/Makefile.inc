@@ -13,6 +13,8 @@
 
 subdirs-y := callbacks crossystem nvdata stages ui util
 
+subdirs-$(CONFIG_WIDEVINE_PROVISION) += widevine
+
 depthcharge-y += stages.c
 depthcharge-y += boot_info.c
 depthcharge-y += firmware_id.c
