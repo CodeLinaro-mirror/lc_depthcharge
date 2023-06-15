@@ -20,6 +20,7 @@
 #include <stdint.h>
 #include <vb2_api.h>
 
+#include "arch/post_code.h"
 #include "base/android_misc.h"
 #include "base/cleanup_funcs.h"
 #include "base/gpt.h"
@@ -225,9 +226,13 @@ int vboot_select_and_boot_kernel(void)
 	list_insert_after(&commit_and_lock_cleanup.list_node,
 			  &cleanup_funcs);
 
+	post_code(POST_CODE_KERNEL_PHASE_1);
+
 	vb2_error_t res = vb2api_kernel_phase1(ctx);
 	if (res != VB2_SUCCESS)
 		goto fail;
+
+	post_code(POST_CODE_KERNEL_PHASE_2);
 
 	res = vb2api_kernel_phase2(ctx);
 	if (res != VB2_SUCCESS)
@@ -238,6 +243,7 @@ int vboot_select_and_boot_kernel(void)
 		goto fail;
 
 	vboot_check_secdata_corruption(12);
+	post_code(POST_CODE_KERNEL_LOAD);
 	res = vboot_select_and_load_kernel(ctx, &kparams);
 	vboot_check_secdata_corruption(13);
 	if (res != VB2_SUCCESS)
@@ -252,6 +258,8 @@ int vboot_select_and_boot_kernel(void)
 			reboot();
 		}
 	}
+
+	post_code(POST_CODE_KERNEL_FINALIZE);
 
 	res = vb2api_kernel_finalize(ctx);
 
@@ -323,6 +331,8 @@ void vboot_boot_kernel(struct vb2_kernel_params *kparams)
 			return;
 		bi.cmd_line = cmd_line_buf;
 	}
+
+	post_code(POST_CODE_CROSSYSTEM_SETUP);
 
 	if (crossystem_setup(FIRMWARE_TYPE_AUTO_DETECT))
 		return;
