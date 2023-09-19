@@ -62,7 +62,7 @@ static int fill_info_multiboot(struct boot_info *bi,
 }
 #endif
 
-/************************* Android GKI *******************************/
+// Legacy Android boot
 #define ANDROID_GKI_BOOT_HDR_SIZE 4096
 #define ANDROID_BDEV_KEY_STR "androidboot.boot_devices"
 #define ANDROID_BOOT_PART_UUID_KEY_STR "androidboot.boot_part_uuid"
@@ -270,7 +270,7 @@ static bool gki_ramdisk_fragment_needed(struct vendor_ramdisk_table_entry_v4 *fr
 	}
 }
 
-static int gki_setup_ramdisk(struct boot_info *bi,
+static int legacy_gki_setup_ramdisk(struct boot_info *bi,
 			     struct vb2_kernel_params *kparams,
 			     int fill_cmdline)
 {
@@ -432,7 +432,7 @@ static int gki_setup_ramdisk(struct boot_info *bi,
 	return 0;
 }
 
-static int fill_info_gki(struct boot_info *bi,
+static int legacy_fill_info_gki(struct boot_info *bi,
 			 struct vb2_kernel_params *kparams)
 {
 	if (kparams->kernel_buffer == NULL) {
@@ -446,8 +446,82 @@ static int fill_info_gki(struct boot_info *bi,
 	/* Kernel starts at the beginning of kernel buffer */
 	bi->kernel = kparams->kernel_buffer;
 
-	if (gki_setup_ramdisk(bi, kparams, 1))
+	if (legacy_gki_setup_ramdisk(bi, kparams, 1))
 		return -1;
+
+	return 0;
+}
+
+/****************************** Android GKI ******************************/
+
+static int gki_setup_bootconfig(struct boot_info *bi, struct vb2_kernel_params *kp)
+{
+	struct bootconfig_trailer *trailer;
+	struct bootconfig bc;
+	int ret;
+
+	uintptr_t kernel_buffer_end = (uintptr_t)kp->kernel_buffer + kp->kernel_buffer_size;
+	uintptr_t ramdisk_end = (uintptr_t)kp->ramdisk + kp->ramdisk_size;
+	bootconfig_init(&bc, (void *)ramdisk_end, kernel_buffer_end - ramdisk_end);
+
+	/*
+	 * "bootconfig" is already included in the vendor_boot cmdline, if the
+	 * vendor ramdisk contains non-empty bootconfig. Since in our case we're
+	 * unconditionally adding some parameters this way, we'll need to make
+	 * sure that kernel knows to parse them even if there's nothing
+	 * in the vendor ramdisk.
+	 */
+	if (!kp->bootconfig_size)
+		commandline_append("bootconfig");
+
+	/* Append parameters from vendor image to bootconfig */
+	ret = bootconfig_append_params(&bc, kp->bootconfig, kp->bootconfig_size);
+	if (ret < 0) {
+		printf("GKI: Cannot append build time bootconfig\n");
+		return -1;
+	}
+
+	ret = bootconfig_append_cmdline(&bc, kp->vboot_cmdline_buffer);
+	if (ret < 0) {
+		printf("GKI: Cannot copy vboot cmdline to bootconfig\n");
+		return -1;
+	}
+
+	trailer = bootconfig_finalize(&bc, 0);
+	if (!trailer) {
+		printf("GKI: Cannot finalize bootconfig\n");
+		return -1;
+	}
+
+	/* Update ramdisk size after adding bootconfig */
+	bi->ramdisk_size += trailer->params_size + sizeof(*trailer);
+
+	return 0;
+}
+
+static int fill_info_gki(struct boot_info *bi,
+			 struct vb2_kernel_params *kparams)
+{
+	if (kparams->kernel_buffer == NULL) {
+		printf("Pointer to kernel buffer is not initialized\n");
+		return -1;
+	}
+
+	/* gki_setup_bootconfig() expects ramdisk to be part of kernel buffer */
+	assert((void *)kparams->ramdisk > kparams->kernel_buffer &&
+	       kparams->ramdisk + kparams->ramdisk_size <=
+	       (uint8_t *)kparams->kernel_buffer + kparams->kernel_buffer_size);
+
+	/* Kernel starts at the beginning of kernel buffer */
+	bi->kernel = kparams->kernel_buffer + BOOT_HEADER_SIZE;
+	bi->ramdisk_addr = kparams->ramdisk;
+	bi->ramdisk_size = kparams->ramdisk_size;
+	bi->cmd_line = kparams->vendor_cmdline_buffer;
+
+	if (CONFIG(BOOTCONFIG)) {
+		if (gki_setup_bootconfig(bi, kparams))
+			return -1;
+	}
 
 	return 0;
 }
@@ -458,12 +532,16 @@ int fill_boot_info(struct boot_info *bi, struct vb2_kernel_params *kparams)
 
 	if (type == KERNEL_IMAGE_CROS) {
 		return fill_info_cros(bi, kparams);
+	} else if (type == KERNEL_IMAGE_BOOTIMG) {
+		printf("Boot Android via BOOTIMG type\n");
+		return fill_info_gki(bi, kparams);
 #if CONFIG(KERNEL_MULTIBOOT)
 	} else if (type == KERNEL_IMAGE_MULTIBOOT) {
 		return fill_info_multiboot(bi, kparams);
 #endif
 	} else if (type == KERNEL_IMAGE_ANDROID_GKI) {
-		return fill_info_gki(bi, kparams);
+		printf("Boot Android via ANDROID_GKI type\n");
+		return legacy_fill_info_gki(bi, kparams);
 	} else {
 		printf("%s: Invalid image type %x!\n", __func__, type);
 		return -1;
