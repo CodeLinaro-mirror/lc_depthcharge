@@ -99,6 +99,12 @@ int display_init(void);
 /* Returns 1 if init is required (framebuffer is available), otherwise 0. */
 int display_init_required(void);
 
+/*
+ * Returns 1 if external display is initialized and is ready.
+ * Otherwise 0 aka external display not available.
+ */
+int has_external_display(void);
+
 int backlight_update(uint8_t enable);
 int display_screen(enum VbScreenType_t screen);
 
