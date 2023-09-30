@@ -60,6 +60,9 @@ static int board_setup(void)
 	/* PCH Power */
 	power_set_ops(&skylake_power_ops);
 
+	/* Flash */
+	flash_set_ops(&new_mmap_flash()->ops);
+
 	/* SATA SSD */
 	AhciCtrlr *ahci = new_ahci_ctrlr(PCI_DEV(0, 0x17, 0));
 	list_insert_after(&ahci->ctrlr.list_node, &fixed_block_dev_controllers);

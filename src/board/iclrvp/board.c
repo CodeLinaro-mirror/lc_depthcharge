@@ -80,6 +80,9 @@ static int board_setup(void)
 	list_insert_after(&nvme->ctrlr.list_node,
 			  &fixed_block_dev_controllers);
 
+	/* Flash */
+	flash_set_ops(&new_mmap_flash()->ops);
+
 	return 0;
 }
 

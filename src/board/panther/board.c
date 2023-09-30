@@ -44,6 +44,8 @@ static int board_setup(void)
 
 	tpm_set_ops(&new_lpc_tpm((void *)0xfed40000)->ops);
 
+	flash_set_ops(&new_mmap_flash()->ops);
+
 	return 0;
 }
 
