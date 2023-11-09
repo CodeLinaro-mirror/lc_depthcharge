@@ -19,6 +19,7 @@
 #include <libpayload.h>
 #include <vb2_api.h>
 
+#include "drivers/ec/cros/ec.h"
 #include "drivers/video/display.h"
 #include "vboot/ui.h"
 
@@ -247,6 +248,28 @@ static void draw_fallback_stripes(enum ui_screen screen,
 }
 
 /*
+ * Calculate the 32-bit value to report as the AP firmware state
+ *
+ * This must be stable for all time, since FAFT tests rely on it.
+ *
+ * @param state	UI state to report
+ * @return corresponding 32-bit value
+ */
+static uint32_t calc_ap_fw_state(const struct ui_state *state)
+{
+	/*
+	 * For now we only report the screen ID. At some point the focused_item
+	 * could be added, but we may want to renumber the screens to take up
+	 * less space, first.
+	 *
+	 * Current valid values are defined by enum ui_screen and currently use
+	 * 11 bits.
+	 */
+	return state->screen->id;
+}
+
+
+/*
  * Display the UI state on the screen.
  *
  * When part of the screen remains unchanged, screen redrawing should be kept as
@@ -366,6 +389,13 @@ vb2_error_t ui_display(enum ui_screen screen, uint32_t locale_id,
 
 	memcpy(&prev_state, &state, sizeof(struct ui_state));
 	has_prev_state = 1;
+
+	/*
+	 * Tell the EC about our state...ignore errors since some ECs won't
+	 * support this.
+	 */
+	if (CONFIG(DRIVER_EC_CROS))
+		cros_ec_set_ap_fw_state(calc_ap_fw_state(&state));
 
 	return VB2_SUCCESS;
 

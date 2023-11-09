@@ -191,7 +191,11 @@
 /* Enter fastboot */
 #define UI_KEY_DEV_FASTBOOT		UI_KEY_CTRL('F')
 
-/* Screens. */
+/*
+ * Screens
+ *
+ * Tast uses the IDs to identify the displayed screens. Do NOT modify the IDs.
+ */
 enum ui_screen {
 	/* Wait screen for EC sync and AUXFW sync */
 	UI_SCREEN_FIRMWARE_SYNC				= 0x100,

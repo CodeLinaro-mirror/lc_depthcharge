@@ -444,4 +444,13 @@ int cros_ec_get_usb_pd_control(int port, int *ufp, int *dbg_acc);
  */
 int cros_ec_print(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 
+/**
+ * Set AP firmware state for reading by FAFT (Fully Automated Firmware Tests).
+ * We use this to indicate the currently displayed firmware screen.
+ *
+ * @param state		State value
+ * @return 0 if ok, -1 on error
+ */
+int cros_ec_set_ap_fw_state(uint32_t state);
+
 #endif /* __DRIVERS_EC_CROS_EC_H__ */
