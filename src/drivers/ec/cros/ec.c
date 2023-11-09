@@ -1548,3 +1548,16 @@ void cros_ec_probe_aux_fw_chips(void)
 		}
 	}
 }
+
+int cros_ec_set_ap_fw_state(uint32_t state)
+{
+	struct ec_params_ap_fw_state params;
+	int ret;
+
+	params.state = state;
+
+	ret = ec_command(cros_ec_get(), EC_CMD_AP_FW_STATE, 0,
+			 &params, sizeof(params), NULL, 0);
+
+	return ret;
+}

@@ -195,7 +195,11 @@
 /* L for aLtfw (formerly Legacy) */
 #define UI_KEY_DEV_BOOT_ALTFW		UI_KEY_CTRL('L')
 
-/* Screens. */
+/*
+ * Screens
+ *
+ * Tast uses the IDs to identify the displayed screens. Do NOT modify the IDs.
+ */
 enum ui_screen {
 	/* Wait screen for EC sync and AUXFW sync */
 	UI_SCREEN_FIRMWARE_SYNC				= 0x100,
