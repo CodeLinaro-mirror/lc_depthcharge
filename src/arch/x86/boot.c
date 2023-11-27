@@ -56,9 +56,12 @@ static uint32_t lb_mem_type_to_e820(uint32_t lb_mem_type) {
 	}
 }
 
-int boot_x86_linux(struct boot_params *boot_params, char *cmd_line,
-		   size_t bootconfig_offset, void *entry)
+int boot_x86_linux(struct boot_info *bi)
 {
+	struct boot_params *boot_params = bi->params;
+	char *cmd_line = bi->cmd_line;
+	void *entry = bi->kernel;
+
 	// Move the boot_params structure and the command line to where Linux
 	// suggests and to where they'll be safe from being trampled by the
 	// kernel as it's decompressed.
@@ -104,8 +107,7 @@ int boot_x86_linux(struct boot_params *boot_params, char *cmd_line,
 
 	run_cleanup_funcs(CleanupOnHandoff);
 	if (CONFIG(BOOTCONFIG) &&
-	    fixup_android_boottime((void *)(uintptr_t)hdr->ramdisk_image,
-				   hdr->ramdisk_size, bootconfig_offset))
+	    append_android_bootconfig_boottime(bi))
 		return 1;
 
 	puts("\nStarting kernel ...\n\n");

@@ -180,17 +180,12 @@ fail:
 /*
  * Update cmdline with proper slot_suffix parameter
  */
-static int modify_android_slot_suffix(struct vb2_kernel_params *kparams,
-				      uintptr_t bootc_ramdisk_addr,
-				      size_t bootc_buffer_size)
+static int modify_android_slot_suffix(struct bootconfig *bc,
+				      struct vb2_kernel_params *kparams)
 {
 	char *str_to_insert;
-	struct vendor_boot_img_hdr_v4 *vendor_hdr;
 	uint32_t partition_number = kparams->partition_number;
-	int bootconfig_size;
 
-	vendor_hdr = (struct vendor_boot_img_hdr_v4 *)((uintptr_t)kparams->kernel_buffer +
-						       kparams->vendor_boot_offset);
 
 	/* Validate partition number according to supported layout at
 	 * al-internal/platform/vendor/google_devices/houdini/+/tm-al:layout/disk_layout.json */
@@ -207,87 +202,20 @@ static int modify_android_slot_suffix(struct vb2_kernel_params *kparams,
 		return -1;
 	}
 
-	bootconfig_size = append_bootconfig_params(ANDROID_SLOT_SUFFIX_KEY_STR,
-						  str_to_insert,
-						  (void *)bootc_ramdisk_addr,
-						  vendor_hdr->bootconfig_size,
-						  bootc_buffer_size);
-	if (bootconfig_size < 0) {
-		printf("Cannot update boot slot for android GKI!\n");
-		return -1;
-	} else
-		vendor_hdr->bootconfig_size = bootconfig_size;
-
-	return 0;
-}
-
-/*
- * Update bootconfig with proper boot_devices parameter
- */
-static int modify_android_boot_devices(struct vb2_kernel_params *kparams,
-				       uintptr_t bootc_ramdisk_addr,
-				       size_t bootc_buffer_size)
-{
-	char *str_to_insert;
-	struct vendor_boot_img_hdr_v4 *vendor_hdr;
-	BlockDev *bdev = (BlockDev *)kparams->disk_handle;
-	int bootconfig_size;
-
-	vendor_hdr = (struct vendor_boot_img_hdr_v4 *)((uintptr_t)kparams->kernel_buffer +
-						       kparams->vendor_boot_offset);
-
-	str_to_insert = bdev->removable ?
-			CONFIG_ANDROID_BOOT_DEVICES_REMOVABLE :
-			CONFIG_ANDROID_BOOT_DEVICES_DISK;
-
-	/* Exit early if platform does not set boot_devices, nothing to do */
-	if (!strlen(str_to_insert))
-		return 0;
-
-	bootconfig_size = append_bootconfig_params(ANDROID_BDEV_KEY_STR,
-						  str_to_insert,
-						  (void *)bootc_ramdisk_addr,
-						  vendor_hdr->bootconfig_size,
-						  bootc_buffer_size);
-	if (bootconfig_size < 0) {
-		printf("Cannot modify boot device for android GKI!\n");
-		return -1;
-	} else
-		vendor_hdr->bootconfig_size = bootconfig_size;
-
-	return 0;
+	return bootconfig_append(bc, ANDROID_SLOT_SUFFIX_KEY_STR, str_to_insert);
 }
 
 /*
  * Update bootconfig with proper force_normal_boot parameter
  */
-static int modify_android_force_normal_boot(struct vb2_kernel_params *kparams,
-					    uintptr_t bootc_ramdisk_addr,
-					    size_t bootc_buffer_size,
+static int modify_android_force_normal_boot(struct bootconfig *bc,
 					    bool recovery_boot)
 {
 	char *str_to_insert;
-	struct vendor_boot_img_hdr_v4 *vendor_hdr;
-	int bootconfig_size;
-
-	vendor_hdr = (struct vendor_boot_img_hdr_v4 *)((uintptr_t)kparams->kernel_buffer +
-						       kparams->vendor_boot_offset);
 
 	str_to_insert = recovery_boot ? "0" : "1";
 
-	bootconfig_size = append_bootconfig_params(ANDROID_FORCE_NORMAL_BOOT_KEY_STR,
-						  str_to_insert,
-						  (void *)bootc_ramdisk_addr,
-						  vendor_hdr->bootconfig_size,
-						  bootc_buffer_size);
-	if (bootconfig_size < 0) {
-		printf("Cannot set force normal boot property for Android GKI!\n");
-		return -1;
-	}
-
-	vendor_hdr->bootconfig_size = bootconfig_size;
-
-	return 0;
+	return bootconfig_append(bc, ANDROID_FORCE_NORMAL_BOOT_KEY_STR, str_to_insert);
 }
 
 static bool gki_is_recovery_boot(struct vb2_kernel_params *kparams)
@@ -313,31 +241,14 @@ static bool gki_is_recovery_boot(struct vb2_kernel_params *kparams)
 	}
 }
 
-static int add_android_boot_part_uuid(struct vb2_kernel_params *kparams,
-				      uintptr_t bootc_ramdisk_addr,
-				      size_t bootc_buffer_size)
+static int add_android_boot_part_uuid(struct bootconfig *bc,
+				      struct vb2_kernel_params *kparams)
 {
-	struct vendor_boot_img_hdr_v4 *vendor_hdr;
-	int bootconfig_size;
 	char guid_str[GUID_STRLEN];
 
-	vendor_hdr = (struct vendor_boot_img_hdr_v4 *)((uintptr_t)kparams->kernel_buffer +
-						       kparams->vendor_boot_offset);
-
 	guid_to_string(kparams->partition_guid, guid_str, ARRAY_SIZE(guid_str));
-	bootconfig_size = append_bootconfig_params(ANDROID_BOOT_PART_UUID_KEY_STR,
-						  guid_str,
-						  (void *)bootc_ramdisk_addr,
-						  vendor_hdr->bootconfig_size,
-						  bootc_buffer_size);
-	if (bootconfig_size < 0) {
-		printf("Cannot modify boot device for android GKI!\n");
-		return -1;
-	}
 
-	vendor_hdr->bootconfig_size = bootconfig_size;
-
-	return 0;
+	return bootconfig_append(bc, ANDROID_BOOT_PART_UUID_KEY_STR, guid_str);
 }
 
 static bool gki_ramdisk_fragment_needed(struct vendor_ramdisk_table_entry_v4 *fragment,
@@ -365,6 +276,7 @@ static int gki_setup_ramdisk(struct boot_info *bi,
 {
 	struct vendor_boot_img_hdr_v4 *vendor_hdr;
 	struct boot_img_hdr_v4 *init_hdr;
+	struct bootconfig_trailer *trailer = NULL;
 	uint8_t *init_boot_ramdisk_src;
 	uint8_t *vendor_ramdisk;
 	uint8_t *vendor_ramdisk_end;
@@ -373,6 +285,8 @@ static int gki_setup_ramdisk(struct boot_info *bi,
 	uint32_t bootconfig_section_offset;
 	uintptr_t bootc_ramdisk_addr;
 	bool recovery_boot;
+	struct bootconfig bc;
+	int ret;
 
 	vendor_hdr = (struct vendor_boot_img_hdr_v4 *)((uintptr_t)kparams->kernel_buffer +
 						       kparams->vendor_boot_offset);
@@ -444,29 +358,31 @@ static int gki_setup_ramdisk(struct boot_info *bi,
 			printf("GKI: Not enough space for bootconfig\n");
 			return -1;
 		}
+
+		uintptr_t kernel_buffer_end = (uintptr_t)kparams->kernel_buffer +
+					      kparams->kernel_buffer_size;
+		bootconfig_init(&bc, (void *)bootc_ramdisk_addr,
+		   kernel_buffer_end - bootc_ramdisk_addr);
+
 		/* Generate valid (that is including trailer) bootconfig section
 		 * at the end of a ramdisk. Keep track of its size which is
 		 * necessary in case of updating it later on.
 		 */
-		vendor_hdr->bootconfig_size =
-			parse_build_time_bootconfig((void *)bootc_ramdisk_addr,
-				(uint8_t *)vendor_hdr + bootconfig_section_offset,
-				vendor_hdr->bootconfig_size);
-		if (vendor_hdr->bootconfig_size < 0) {
+		ret = bootconfig_append_params(&bc,
+					      (uint8_t *)vendor_hdr + bootconfig_section_offset,
+					       vendor_hdr->bootconfig_size);
+		if (ret < 0) {
 			printf("GKI: Cannot parse build time bootconfig\n");
 			return -1;
 		}
 
-		vendor_hdr->bootconfig_size = bootconfig_append_cmdline(
-		    kparams->kernel_bootconfig_buffer,
-		    (void *)bootc_ramdisk_addr,
-		    vendor_hdr->bootconfig_size);
-		if (vendor_hdr->bootconfig_size < 0) {
+		ret = bootconfig_append_cmdline(&bc, kparams->kernel_bootconfig_buffer);
+		if (ret < 0) {
 			printf("GKI: Cannot copy avb cmdline to bootconfig\n");
 			return -1;
 		}
 
-		if (append_android_bootconfig_params(kparams, (void *)bootc_ramdisk_addr) < 0)
+		if (append_android_bootconfig_params(&bc) < 0)
 			/*
 			 * On error, just log a message and continue with the rest of the
 			 * bootflow. The  idea is to get as many run-time bootconfig params
@@ -475,41 +391,21 @@ static int gki_setup_ramdisk(struct boot_info *bi,
 			 */
 			printf("GKI: Cannot append all android bootconfig params\n");
 
-		/* Update boot device */
-		if (modify_android_boot_devices(kparams,
-						(uintptr_t)bootc_ramdisk_addr,
-						(size_t)(kparams->kernel_buffer +
-						kparams->kernel_buffer_size -
-						bootc_ramdisk_addr)))
-			return -1;
-
 
 		/* Update slot suffix */
-		if (modify_android_slot_suffix(kparams,
-					       bootc_ramdisk_addr,
-					       (size_t)(kparams->kernel_buffer +
-					       kparams->kernel_buffer_size -
-					       bootc_ramdisk_addr)) < 0)
+		if (modify_android_slot_suffix(&bc, kparams))
 			return -1;
 
 		/* Select boot mode */
-		if (modify_android_force_normal_boot(kparams,
-						     bootc_ramdisk_addr,
-						     (size_t)(kparams->kernel_buffer +
-							      kparams->kernel_buffer_size -
-							      bootc_ramdisk_addr),
-						     recovery_boot) < 0)
+		if (modify_android_force_normal_boot(&bc, recovery_boot))
 			return -1;
 
-		if (add_android_boot_part_uuid(kparams,
-					       bootc_ramdisk_addr,
-					       (size_t)(kparams->kernel_buffer +
-							kparams->kernel_buffer_size -
-							bootc_ramdisk_addr)) < 0)
+		if (add_android_boot_part_uuid(&bc, kparams))
 			return -1;
 
-		/* Update bootconfig offset within ramdisk */
-		bi->ramdisk_bootconfig_offset = bootc_ramdisk_addr - (uintptr_t)vendor_ramdisk;
+		trailer = bootconfig_finalize(&bc,
+			sizeof(BOOTCONFIG_BOOTTIME_KEY_STR "=" BOOTCONFIG_MAX_BOOTTIME_STR) +
+			sizeof(BOOTCONFIG_DELIMITER));
 	}
 
 	commandline_append(kparams->kernel_cmdline_buffer);
@@ -528,8 +424,7 @@ static int gki_setup_ramdisk(struct boot_info *bi,
 
 	/* Update ramdisk addr and size */
 	bi->ramdisk_addr = vendor_ramdisk;
-	bi->ramdisk_size = (uintptr_t)(vendor_ramdisk_end - vendor_ramdisk) +
-			   init_hdr->ramdisk_size + vendor_hdr->bootconfig_size;
+	bi->ramdisk_size = (uint8_t *)(trailer + 1) - vendor_ramdisk;
 
 	if (fill_cmdline)
 		bi->cmd_line = (char *)vendor_hdr->cmdline;
