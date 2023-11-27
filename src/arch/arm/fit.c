@@ -131,8 +131,7 @@ int boot(struct boot_info *bi)
 
 	run_cleanup_funcs(CleanupOnHandoff);
 	if (CONFIG(BOOTCONFIG) &&
-	    fixup_android_boottime((void *)bi->ramdisk_addr, bi->ramdisk_size,
-				   bi->ramdisk_bootconfig_offset))
+	    append_android_bootconfig_boottime(bi))
 		return 1;
 
 	return boot_arm_linux(fdt, kernel);
