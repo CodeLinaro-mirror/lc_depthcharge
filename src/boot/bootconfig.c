@@ -1,186 +1,159 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#include <assert.h>
 #include <libpayload.h>
 
-#include "base/string_utils.h"
 #include "boot/bootconfig.h"
 #include "boot/commandline.h"
 
-static char *bootconfig_set_key_value(const char *src, char *key, char *value)
+void bootconfig_init(struct bootconfig *bc, void *start, size_t buffer_size)
 {
-	return set_key_value_in_separated_list(src, key, value, "\n");
+	assert(bc != NULL && start != NULL);
+	assert(buffer_size >= sizeof(struct bootconfig_trailer) + 1);
+
+	/* Enough place, bootconfig is placed right after ramdisks */
+	bc->start = start;
+	/* Reserved space for bootconfig trailer and terminating character */
+	bc->limit = buffer_size - sizeof(struct bootconfig_trailer) - 1;
+	bc->size = 0;
+	/* To make thing easier treat bootconfig as a string */
+	bc->start[0] = '\0';
 }
 
-/*
- * Calculate checksum for bootconfig params.
- *
- * @param addr pointer to the start of the buffer.
- * @param size size of the buffer in bytes.
- * @return checksum result.
- */
-static uint32_t checksum(const unsigned char *const buffer, size_t size) {
+int bootconfig_reinit(struct bootconfig *bc, void *trailer_addr)
+{
+	struct bootconfig_trailer *trailer = trailer_addr;
+
+	assert(bc != NULL && trailer != NULL);
+
+	if (memcmp(trailer->magic, BOOTCONFIG_MAGIC, BOOTCONFIG_MAGIC_BYTES))
+		return -1;
+
+	bc->start = (char *)trailer - trailer->params_size;
+	bc->limit = trailer->params_size;
+
+	/* String length should be at most bc->limit - 1. */
+	bc->size = strnlen(bc->start, bc->limit);
+	if (bc->size == bc->limit)
+		return -1;
+
+	return 0;
+}
+
+int bootconfig_append_params(struct bootconfig *bc, void *bootsection_params,
+			     size_t bootsection_size)
+{
+	if (!bootsection_size)
+		return 0;
+
+	if (bc->size + bootsection_size > bc->limit)
+		return -1;
+
+	memmove(&bc->start[bc->size], bootsection_params, bootsection_size);
+	bc->size += bootsection_size;
+	bc->start[bc->size] = '\0';
+
+	return 0;
+}
+
+int bootconfig_append_cmdline(struct bootconfig *bc, char *cmdline_string)
+{
+	bool in_quote = false;
+	char *in, *out;
+	int ret = -1;
+
+	for (in = cmdline_string, out = bc->start + bc->size; ; in++, out++) {
+		if (out >= bc->start + bc->limit)
+			goto exit;
+
+		if (!in_quote && isspace(in[0])) {
+			out[0] = BOOTCONFIG_DELIMITER;
+			while (isspace(in[1]))
+				in++;
+			continue;
+		}
+		if (in[0] == '"')
+			in_quote = !in_quote;
+
+		if (in[0] == '\0') {
+			*out++ = BOOTCONFIG_DELIMITER;
+			break;
+		}
+
+		out[0] = in[0];
+	}
+
+	if (in_quote)
+		goto exit;
+
+	bc->size = out - bc->start;
+	ret = 0;
+
+exit:
+	bc->start[bc->size] = '\0';
+	return ret;
+}
+
+int bootconfig_append(struct bootconfig *bc, const char *key, const char *value)
+{
+	char *end;
+	int len;
+	size_t space;
+
+	assert(bc != NULL && key != NULL && value != NULL);
+
+	/* Add parameters at the end */
+	space = bc->limit - bc->size;
+	end = &bc->start[bc->size];
+	len = snprintf(end, space, "%s=%s%c", key, value, BOOTCONFIG_DELIMITER);
+	if (len >= space || len < 0) {
+		bc->start[bc->size] = '\0';
+		return -1;
+	}
+	bc->size += len;
+
+	return 0;
+}
+
+static uint32_t bootconfig_checksum(char *bootconfig, size_t size)
+{
 	uint32_t sum = 0;
 
 	for (size_t i = 0; i < size; i++)
-		sum += buffer[i];
+		sum += bootconfig[i];
 
 	return sum;
 }
 
-/*
- * Add boot config trailer.
- */
-static void append_bootconfig_trailer(void *bootc_start, size_t params_size)
+void bootconfig_checksum_recalculate(struct bootconfig *bc, struct bootconfig_trailer *trailer)
 {
-	uint8_t *trailer;
+	trailer->params_checksum = bootconfig_checksum(bc->start, trailer->params_size);
+}
+
+struct bootconfig_trailer *bootconfig_finalize(struct bootconfig *bc, size_t reserved)
+{
+	struct bootconfig_trailer *trailer;
+	size_t full_size;
 	uint32_t sum;
 
-	trailer = (uint8_t *)bootc_start + params_size;
+	if (bc->limit < bc->size + reserved + 1)
+		return NULL;
+
+	/* Make sure that reserved space and byte for null termination are zeroed */
+	memset(&bc->start[bc->size], 0, reserved + 1);
+
+	full_size = bc->size + reserved + 1;
+	trailer = (struct bootconfig_trailer *)(bc->start + full_size);
 
 	/* size */
-	memcpy(trailer, &params_size, BOOTCONFIG_SIZE_BYTES);
+	trailer->params_size = full_size;
 
 	/* checksum */
-	sum = checksum((unsigned char *)bootc_start, params_size);
-	memcpy(trailer + BOOTCONFIG_SIZE_BYTES, &sum,
-	       BOOTCONFIG_CHECKSUM_BYTES);
+	sum = bootconfig_checksum(bc->start, trailer->params_size);
+	trailer->params_checksum = sum;
 
 	/* magic at the end of trailer */
-	memcpy(trailer + BOOTCONFIG_SIZE_BYTES + BOOTCONFIG_CHECKSUM_BYTES,
-	       BOOTCONFIG_MAGIC, BOOTCONFIG_MAGIC_BYTES);
-}
+	memcpy(trailer->magic, BOOTCONFIG_MAGIC, BOOTCONFIG_MAGIC_BYTES);
 
-int bootconfig_append_cmdline(char *cmdline_string, void *bootc_start, size_t bootc_size)
-{
-	char *p, *next_non_space, *tmp;
-	size_t len, bootparams_size;
-	bool in_quote = false;
-
-	/* Make a copy for modifications */
-	tmp = strdup(cmdline_string);
-	if (tmp == NULL)
-		return -1;
-
-	/* Replace spaces with newlines */
-	for (p = tmp; *p; p++) {
-		if (*p == '"') {
-			in_quote = !in_quote;
-			continue;
-		}
-		if (in_quote)
-			continue;
-		if (isspace(*p)) {
-			*p = '\n';
-			next_non_space = p;
-			while (isspace(*(++next_non_space)));
-			/* Check for the case with multiple consecutive spaces */
-			if (next_non_space - p > 1) {
-				/* memmove over consecuteive spaces, include null-char */
-				memmove(p + 1, next_non_space, strlen(next_non_space) + 1);
-			}
-		}
-	}
-
-	len = strlen(tmp);
-	bootparams_size = bootc_size - BOOTCONFIG_TRAILER_BYTES;
-
-	/* Append string at the end of the current bootconfig params string */
-	memcpy((char *)bootc_start + bootparams_size, tmp, len);
-	append_bootconfig_trailer(bootc_start, bootparams_size + len);
-
-	free(tmp);
-	return bootc_size + len;
-}
-
-/**
- * Add new string to bootconfig parameters, update trailer structure.
- *
- * In case provided key already exists, update its value.
- *
- * @param key - pointer to the string comprising key
- * @param value - pointer to the string comprising value for key
- * @param bootc_start - pointer to the bootconfig section
- * @param bootc_size - current size of bootconfig structure
- * @param buffer_size - size allocated for bootconfig structure
- *
- * @param return: New size of bootconfig params section after update,
- *                -1 on error
- */
-int append_bootconfig_params(char *key, char *value, void *bootc_start,
-			     size_t bootc_size, size_t buffer_size)
-{
-	size_t size;
-	char *bootc_str = (char *)bootc_start;
-	char *updated_str;
-
-	if (bootc_start == NULL || key == NULL || value == NULL)
-		return -1;
-
-	/*
-	 * If bootconfig structure doesn't have trailer (its current size is
-	 * 0), we will need to construct it from scratch after adding key=value
-	 * string. Shadow `bootc_size` real value, so that algorithm below will
-	 * take care of it.
-	 */
-	if (bootc_size == 0)
-		bootc_size = BOOTCONFIG_TRAILER_BYTES;
-
-	/*
-	 * Firstly, we need to append NULL terminator to bootconfig entries to
-	 * convert it to string acceptable by API used below. Trailer can be
-	 * overridden as we will reconstruct it anyway.
-	 */
-	bootc_str[bootc_size - BOOTCONFIG_TRAILER_BYTES] = '\0';
-
-	updated_str = bootconfig_set_key_value(bootc_str, key, value);
-
-	/* Check if caller has enough space allocated */
-	if (buffer_size < strlen(updated_str) + BOOTCONFIG_TRAILER_BYTES) {
-		free(updated_str);
-		return -1;
-	}
-
-	/* Don't include string terminator */
-	memcpy((void *)bootc_str, updated_str, strlen(updated_str));
-	append_bootconfig_trailer(bootc_start, strlen(updated_str));
-
-	size = strlen(updated_str) + BOOTCONFIG_TRAILER_BYTES;
-	free(updated_str);
-
-	return size;
-}
-
-/**
- * Parse bootconfig section created at build time (usually on vendor_boot
- * partition) and based on this create eventual bootconfig structure at the
- * provided target address.
- *
- * @param bootc_start - Start address of bootconfig section in memory (usually right
- *                      after ramdisks)
- * @param bootc_params - pointer to the buffer with bootconfig parameters
- * @param params_size - size in bytes of bootc_params
- *
- * @return Size of the whole bootconfig structure,
- *         -1 on error
- */
-int parse_build_time_bootconfig(void *bootc_start, void *bootc_params,
-				size_t params_size)
-{
-	if (bootc_start == NULL || bootc_params == NULL)
-		return -1;
-
-	if (params_size != 0) {
-		memcpy(bootc_start, bootc_params, params_size);
-	} else {
-		/*
-		 * "bootconfig" is appended to command line only
-		 * if there are parameters added by Android. Since
-		 * bootconfig is created from scratch command line
-		 * must be modified here.
-		 */
-		commandline_append("bootconfig");
-	}
-	append_bootconfig_trailer(bootc_start, params_size);
-
-	return params_size + BOOTCONFIG_TRAILER_BYTES;
+	return trailer;
 }

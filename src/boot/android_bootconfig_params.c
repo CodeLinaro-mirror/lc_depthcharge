@@ -29,7 +29,7 @@
 /* 20 characters for model name. Suffix with 12 characters for SKU ID */
 #define MAX_SKU_ID_LENGTH 32
 
-static int append_hwid(void *bootc_start, size_t bootc_size, size_t buf_size)
+static int append_hwid(struct bootconfig *bc)
 {
 	char hwid[VB2_GBB_HWID_MAX_SIZE];
 	uint32_t hwid_size = sizeof(hwid);
@@ -38,11 +38,10 @@ static int append_hwid(void *bootc_start, size_t bootc_size, size_t buf_size)
 		printf("No HWID in GBB\n");
 		return -1;
 	}
-	return append_bootconfig_params(HWID_KEY_STR, hwid,
-					bootc_start, bootc_size, buf_size);
+	return bootconfig_append(bc, HWID_KEY_STR, hwid);
 }
 
-static int append_serial_num(void *bootc_start, size_t bootc_size, size_t buf_size)
+static int append_serial_num(struct bootconfig *bc)
 {
 	char serial_num[MAX_SERIAL_NUM_LENGTH];
 
@@ -50,24 +49,10 @@ static int append_serial_num(void *bootc_start, size_t bootc_size, size_t buf_si
 		printf("No serial number in vpd\n");
 		return -1;
 	}
-	return append_bootconfig_params(SERIAL_NUM_KEY_STR, serial_num,
-					bootc_start, bootc_size, buf_size);
+	return bootconfig_append(bc, SERIAL_NUM_KEY_STR, serial_num);
 }
 
-static int append_boottime(void *bootc_start, size_t bootc_size, size_t buf_size)
-{
-	/* Need to record boot time in ms. This is the requirement on bootloader from utilities
-	   like bootanalyze.py and aligns with other Android platforms. */
-	uint64_t boot_time_ms = get_us_since_pre_cpu_reset() / USECS_PER_MSEC;
-	char boottime[MAX_BOOTTIME_LENGTH];
-
-	/* Reserve 20 digits to record maximum value of uint64_t (18446744073709551615). */
-	snprintf(boottime, sizeof(boottime), "firmware:%-20lld", boot_time_ms);
-	return append_bootconfig_params(BOOTTIME_KEY_STR, boottime,
-					bootc_start, bootc_size, buf_size);
-}
-
-static int append_display_orientation(void *bootc_start, size_t bootc_size, size_t buf_size)
+static int append_display_orientation(struct bootconfig *bc)
 {
 	char orientation_map[][MAX_DISPLAY_ORIENTATION_LENGTH] = {
 		[CB_FB_ORIENTATION_NORMAL] = "ORIENTATION_0",
@@ -81,12 +66,10 @@ static int append_display_orientation(void *bootc_start, size_t bootc_size, size
 		printf("%s: Unexpected display orientation: %d\n", __func__, orientation);
 		return -1;
 	}
-	return append_bootconfig_params(DISPLAY_ORIENTATION_KEY_STR,
-					orientation_map[orientation],
-					bootc_start, bootc_size, buf_size);
+	return bootconfig_append(bc, DISPLAY_ORIENTATION_KEY_STR, orientation_map[orientation]);
 }
 
-static int append_skuid(void *bootc_start, size_t bootc_size, size_t buf_size)
+static int append_skuid(struct bootconfig *bc)
 {
 	char sku_id_str[MAX_SKU_ID_LENGTH];
 	uint32_t sku_id;
@@ -100,13 +83,11 @@ static int append_skuid(void *bootc_start, size_t bootc_size, size_t buf_size)
 		return -1;
 
 	sku_id_str[0] = tolower(sku_id_str[0]);
-	return append_bootconfig_params(SKU_ID_KEY_STR, sku_id_str,
-					bootc_start, bootc_size, buf_size);
+	return bootconfig_append(bc, SKU_ID_KEY_STR, sku_id_str);
 }
 
 enum bootconfig_param_index {
 	SERIAL_NUM,
-	BOOTTIME,
 	DISPLAY_ORIENTATION,
 	HWID,
 	SKU_ID,
@@ -114,17 +95,12 @@ enum bootconfig_param_index {
 
 static struct {
 	const char *name;
-	int (*const append)(void *bootc_start, size_t bootc_size, size_t buf_size);
+	int (*const append)(struct bootconfig *bc);
 	bool exists;
 } params[] = {
 	[SERIAL_NUM] = {
 		.name = SERIAL_NUM_KEY_STR,
 		.append = append_serial_num,
-		.exists = false,
-	},
-	[BOOTTIME] = {
-		.name = BOOTTIME_KEY_STR,
-		.append = append_boottime,
 		.exists = false,
 	},
 	[DISPLAY_ORIENTATION] = {
@@ -144,66 +120,43 @@ static struct {
 	},
 };
 
-int append_android_bootconfig_params(struct VbSelectAndLoadKernelParams *kparams, void *bootc_start)
+int append_android_bootconfig_params(struct bootconfig *bc)
 {
-	struct vendor_boot_img_hdr_v4 *vendor_hdr;
-	size_t bootc_buf_size;
-
-	vendor_hdr = (struct vendor_boot_img_hdr_v4 *)((uintptr_t)kparams->kernel_buffer +
-						       kparams->vendor_boot_offset);
-	if ((uintptr_t)bootc_start > ((uintptr_t)kparams->kernel_buffer +
-						       kparams->kernel_buffer_size))
-		return -1;
-
-	bootc_buf_size = (size_t)(kparams->kernel_buffer + kparams->kernel_buffer_size -
-				  (uintptr_t)bootc_start);
-
 	for (unsigned int i = 0; i < ARRAY_SIZE(params); i++) {
-		int bootconfig_size = params[i].append(bootc_start,
-						vendor_hdr->bootconfig_size, bootc_buf_size);
-		if (bootconfig_size < 0) {
+		int ret = params[i].append(bc);
+		if (ret < 0) {
 			printf("Cannot append %s to Android bootconfig!\n", params[i].name);
 			continue;
 		}
-		vendor_hdr->bootconfig_size = bootconfig_size;
 		params[i].exists = true;
 	}
 	return 0;
 }
 
-int fixup_android_boottime(void *ramdisk, size_t ramdisk_size,
-			   size_t bootconfig_offset)
+int append_android_bootconfig_boottime(struct boot_info *bi)
 {
-	void *bootc_start;
-	size_t prior_bootc_size, updated_bootc_size;
+	struct bootconfig bc;
+	struct bootconfig_trailer *bc_trailer;
 
-	if (!params[BOOTTIME].exists) {
-		/*
-		 * Boottime parameter could not be added earlier either because we are booting
-		 * non-Android OS or some other failure. Do not return error, just log a message
-		 * and continue the bootflow.
-		 */
-		printf("Boottime parameter does not exist in bootconfig. No need to fix it.\n");
-		return 0;
-	}
+	if (!bi->ramdisk_size)
+		return -1;
 
-	if (!ramdisk || !ramdisk_size || !bootconfig_offset ||
-	    (bootconfig_offset >= ramdisk_size)) {
-		printf("%s: Invalid parameters - ramdisk:%p, size:%zu, bootconfig offset:%zu\n",
-			__func__, ramdisk, ramdisk_size, bootconfig_offset);
+	bc_trailer = (struct bootconfig_trailer *)((uintptr_t)bi->ramdisk_addr +
+		      bi->ramdisk_size - sizeof(*bc_trailer));
+
+	if (bootconfig_reinit(&bc, bc_trailer))
+		return -1;
+
+	/* Append current boottime */
+	uint64_t boot_time_ms = get_us_since_pre_cpu_reset() / USECS_PER_MSEC;
+	char boottime[sizeof(BOOTCONFIG_MAX_BOOTTIME_STR)];
+	snprintf(boottime, sizeof(boottime), "firmware:%"PRIu64, boot_time_ms);
+	if (bootconfig_append(&bc, BOOTCONFIG_BOOTTIME_KEY_STR, boottime)) {
+		printf("%s: Cannot append boottime", __func__);
 		return -1;
 	}
-
-	bootc_start = (void *)((uintptr_t)ramdisk + bootconfig_offset);
-	prior_bootc_size = ramdisk_size - bootconfig_offset;
-
-	updated_bootc_size = append_boottime(bootc_start, prior_bootc_size, prior_bootc_size);
-	if (updated_bootc_size != prior_bootc_size) {
-		printf("Failed to fixup boottime in Android bootconfig!\n"
-		       "Updated bootconfig size(%zu) != Prior bootconfig size(%zu)\n",
-		       updated_bootc_size, prior_bootc_size);
-		return -1;
-	}
+	/* Recalculate bootconfig checksum after changes */
+	bootconfig_checksum_recalculate(&bc, bc_trailer);
 
 	return 0;
 }

@@ -4,28 +4,27 @@
 #define _ANDROID_BOOTCONFIG_PARAMS_H_
 
 #include <vboot_api.h>
+#include <vboot/boot.h>
+
+#include "bootconfig.h"
+
+#define BOOTCONFIG_BOOTTIME_KEY_STR "androidboot.boottime"
+#define BOOTCONFIG_MAX_BOOTTIME_STR "firmware:18446744073709551615"
 
 /*
  * Append androidboot bootconfig parameters to bootconfig section.
  *
- * @param kparams - pointer to vboot kernel parameter structure that is used as
- *                  a basis to access current and total size of bootconfig section
- * @param bootc_start - pointer to the bootconfig section
+ * @param bc      - pointer to the bootconfig structure
  *
  * Return: Return 0 on success, -1 in case of errors
  */
-int append_android_bootconfig_params(struct VbSelectAndLoadKernelParams *kparams,
-				     void *bootc_start);
+int append_android_bootconfig_params(struct bootconfig *bc);
 
 /*
- * Fixup boottime in android bootconfig section.
+ * Append Android bootconfig boottime.
  *
- * @param ramdisk - Ramdisk address which includes the bootconfig section at the end
- * @param ramdisk_size - Total size of the ramdisk
- * @param bootc_off - Offset of the bootconfig section within the ramdisk
- *
- * Return: 0 on success, -1 in case of errors
+ * @param bi - pointer to boot_info structure
  */
-int fixup_android_boottime(void *ramdisk, size_t ramdisk_size, size_t bootc_off);
+int append_android_bootconfig_boottime(struct boot_info *bi);
 
 #endif /* _ANDROID_BOOTCONFIG_PARAMS_H_ */
