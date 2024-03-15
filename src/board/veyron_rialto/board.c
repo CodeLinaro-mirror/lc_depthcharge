@@ -12,10 +12,9 @@
  * GNU General Public License for more details.
  */
 
-#include <arch/io.h>
+#include <libpayload.h>
 
 #include "base/init_funcs.h"
-#include "base/container_of.h"
 #include "boot/fit.h"
 #include "drivers/gpio/rockchip.h"
 #include "drivers/bus/i2c/rockchip.h"

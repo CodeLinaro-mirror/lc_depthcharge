@@ -13,6 +13,7 @@
  */
 
 #include <arch/io.h>
+#include <libpayload.h>
 #include "drivers/storage/rk_sdhci.h"
 
 struct rk3399_grf_emmc_phy {

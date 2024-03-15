@@ -24,6 +24,8 @@
 #ifndef _IPQ40XX_SPI_H_
 #define _IPQ40XX_SPI_H_
 
+#include <libpayload.h>
+
 #include "drivers/flash/spi.h"
 #include "drivers/bus/spi/spi.h"
 

@@ -11,7 +11,6 @@
 #include <stdint.h>
 
 #include "base/cleanup_funcs.h"
-#include "base/container_of.h"
 #include "drivers/gpio/tigerlake.h"
 #include "drivers/soc/common/pcr.h"
 #include "drivers/soc/tigerlake.h"

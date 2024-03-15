@@ -13,6 +13,8 @@
  * GNU General Public License for more details.
  */
 
+#include <libpayload.h>
+
 #include "drivers/bus/spi/qcom_qupv3_spi.h"
 
 /* SE_SPI_LOOPBACK register fields */

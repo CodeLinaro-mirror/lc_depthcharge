@@ -28,7 +28,6 @@
 
 #include <libpayload.h>
 
-#include "base/container_of.h"
 #include "drivers/video/ww_ring_programs.h"
 
 /* I2c address of the first of the controllers, the rest are contiguous. */

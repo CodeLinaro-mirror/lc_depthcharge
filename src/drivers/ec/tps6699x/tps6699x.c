@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright 2024 Google LLC.  */
 
+#include <libpayload.h>
 #include <stdio.h>
 
 #include "arch/types.h"

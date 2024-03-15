@@ -24,6 +24,8 @@
 #ifndef _QCS405_SPI_H_
 #define _QCS405_SPI_H_
 
+#include <libpayload.h>
+
 #include "drivers/flash/spi.h"
 #include "drivers/bus/spi/spi.h"
 

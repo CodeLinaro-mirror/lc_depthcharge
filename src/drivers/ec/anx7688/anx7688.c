@@ -21,7 +21,6 @@
 #include <libpayload.h>
 #include <vb2_api.h>
 
-#include "base/container_of.h"
 #include "drivers/ec/anx7688/anx7688.h"
 #include "drivers/flash/cbfs.h"
 

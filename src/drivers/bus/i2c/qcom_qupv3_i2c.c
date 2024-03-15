@@ -13,6 +13,8 @@
  * GNU General Public License for more details.
  */
 
+#include <libpayload.h>
+
 #include "drivers/bus/i2c/qcom_qupv3_i2c.h"
 
 static int i2c_do_xfer(QupRegs *reg_addr, I2cSeg segment, unsigned int prams)

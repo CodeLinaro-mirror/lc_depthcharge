@@ -21,7 +21,6 @@
 #include <string.h>
 #include <vb2_gpt.h>
 
-#include "base/container_of.h"
 #include "base/device_tree.h"
 #include "drivers/flash/flash.h"
 #include "drivers/storage/spi_gpt.h"

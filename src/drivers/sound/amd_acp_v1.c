@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /* Copyright 2022 Google LLC.  */
 
+#include <libpayload.h>
+
 #include "drivers/sound/amd_acp_v1.h"
 #include "drivers/sound/amd_acp_private.h"
 #include "drivers/timer/timer.h"
