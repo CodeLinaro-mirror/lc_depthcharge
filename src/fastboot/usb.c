@@ -2,6 +2,7 @@
 /* Copyright 2024 Google LLC. */
 
 #include <assert.h>
+#include <commonlib/list.h>
 #include <endian.h>
 #include <libpayload.h>
 #include <stdint.h>
@@ -26,7 +27,7 @@
 #define FB_EP_OUT 0x08
 
 typedef struct UsbFastbootDevice {
-	ListNode list_node;
+	struct list_node list_node;
 	struct FastbootOps fb_session;
 	endpoint_t *bulk_in;
 	endpoint_t *bulk_out;
@@ -139,7 +140,7 @@ static int usb_fastboot_init_endpoints(usbdev_t *dev, UsbFastbootDevice *usb_fb_
 }
 
 /* List of all Alink devices probed */
-static ListNode alink_devices;
+static struct list_node alink_devices;
 
 static struct FastbootOps *usb_fastboot_get_dev(void)
 {

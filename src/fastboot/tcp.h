@@ -18,8 +18,9 @@
 #ifndef __FASTBOOT_TCP_H__
 #define __FASTBOOT_TCP_H__
 
+#include <commonlib/list.h>
 #include <stdbool.h>
-#include "base/list.h"
+
 #include "fastboot/fastboot.h"
 #include "net/uip.h"
 
@@ -83,15 +84,15 @@ struct fastboot_tcp_session {
 
 	// The queue of packets that are waiting to be sent.
 	// This is necessary because uIP only sends a packet once per callback.
-	ListNode *txq_top;
-	ListNode *txq_bottom;
+	struct list_node *txq_top;
+	struct list_node *txq_bottom;
 };
 
 // These are entries in the packet queue.
 struct fastboot_tcp_packet {
 	const void *data;
 	int len;
-	ListNode node;
+	struct list_node node;
 };
 
 struct FastbootOps *fastboot_setup_tcp(void);

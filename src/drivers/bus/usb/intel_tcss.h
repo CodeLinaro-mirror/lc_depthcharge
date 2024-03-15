@@ -10,8 +10,6 @@
 #include <stdint.h>
 #include <stddef.h>
 
-#include "base/list.h"
-
 typedef struct TcssCtrlr {
 	uintptr_t regbar;
 	size_t iom_pid;

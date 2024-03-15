@@ -18,9 +18,9 @@
 #ifndef __DRIVERS_STORAGE_BLOCKDEV_H__
 #define __DRIVERS_STORAGE_BLOCKDEV_H__
 
+#include <commonlib/list.h>
 #include <stdint.h>
 
-#include "base/list.h"
 #include "drivers/storage/stream.h"
 
 typedef uint64_t lba_t;
@@ -66,11 +66,11 @@ typedef struct BlockDev {
 	lba_t block_count;		/* size addressable by read/write */
 	lba_t stream_block_count;	/* size addressible by new_stream */
 
-	ListNode list_node;
+	struct list_node list_node;
 } BlockDev;
 
-extern ListNode fixed_block_devices;
-extern ListNode removable_block_devices;
+extern struct list_node fixed_block_devices;
+extern struct list_node removable_block_devices;
 
 typedef struct BlockDevCtrlrOps {
 	int (*update)(struct BlockDevCtrlrOps *me);
@@ -92,11 +92,11 @@ typedef struct BlockDevCtrlr {
 	int need_update;
 	blockctrl_type_t type;
 
-	ListNode list_node;
+	struct list_node list_node;
 } BlockDevCtrlr;
 
-extern ListNode fixed_block_dev_controllers;
-extern ListNode removable_block_dev_controllers;
+extern struct list_node fixed_block_dev_controllers;
+extern struct list_node removable_block_dev_controllers;
 
 StreamOps *new_simple_stream(BlockDevOps *me, lba_t start, lba_t count);
 
@@ -105,7 +105,7 @@ typedef enum {
 	BLOCKDEV_REMOVABLE,
 } blockdev_type_t;
 
-int get_all_bdevs(blockdev_type_t type, ListNode **bdevs);
+int get_all_bdevs(blockdev_type_t type, struct list_node **bdevs);
 
 /*
  * Fill 'count' blocks from 'start' with repeated 'fill_pattern'.

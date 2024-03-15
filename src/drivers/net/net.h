@@ -18,14 +18,14 @@
 #ifndef __DRIVERS_NET_NET_H__
 #define __DRIVERS_NET_NET_H__
 
+#include <commonlib/list.h>
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "base/list.h"
 #include "net/uip.h"
 
 typedef struct NetDevice {
-	ListNode list_node;
+	struct list_node list_node;
 	int (*ready)(struct NetDevice *dev, int *ready);
 	int (*recv)(struct NetDevice *dev, void *buf, uint16_t *len,
 		int maxlen);
@@ -38,7 +38,7 @@ typedef struct NetDevice {
 } NetDevice;
 
 typedef struct NetPoller {
-	ListNode list_node;
+	struct list_node list_node;
 	void (*poll)(struct NetPoller *poller);
 } NetPoller;
 
@@ -50,6 +50,6 @@ int net_send(void *buf, uint16_t len);
 int net_wait_for_link(bool loop);
 const uip_eth_addr *net_get_mac(void);
 
-extern ListNode net_pollers;
+extern struct list_node net_pollers;
 
 #endif /* __DRIVERS_NET_NET_H__ */

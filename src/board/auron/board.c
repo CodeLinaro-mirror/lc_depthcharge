@@ -15,10 +15,10 @@
  * GNU General Public License for more details.
  */
 
+#include <commonlib/list.h>
 #include <pci.h>
 
 #include "base/init_funcs.h"
-#include "base/list.h"
 #include "drivers/ec/cros/lpc.h"
 #include "drivers/gpio/lynxpoint_lp.h"
 #include "drivers/gpio/sysinfo.h"

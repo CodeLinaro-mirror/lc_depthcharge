@@ -93,7 +93,7 @@ static vb2_error_t start_fastboot_if_requested(struct vb2_context *ctx)
 		return VB2_SUCCESS;
 
 	enum android_misc_bcb_command cmd;
-	ListNode *devs;
+	struct list_node *devs;
 	get_all_bdevs(BLOCKDEV_FIXED, &devs);
 
 	BlockDev *bdev = NULL;

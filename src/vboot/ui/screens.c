@@ -17,11 +17,11 @@
  */
 
 #include <arch/cache.h>
+#include <commonlib/list.h>
 #include <libpayload.h>
 #include <vb2_api.h>
 
 #include "base/elog.h"
-#include "base/list.h"
 #include "boot/payload.h"
 #include "diag/common.h"
 #include "diag/health_info.h"
@@ -1706,7 +1706,7 @@ static size_t get_altfw_count(void)
 {
 	struct altfw_info *node;
 	size_t count = 0;
-	ListNode *head;
+	struct list_node *head;
 
 	head = payload_get_altfw_list();
 	if (head) {
@@ -1768,7 +1768,7 @@ vb2_error_t ui_developer_mode_boot_altfw_action(struct ui_context *ui)
 static const struct ui_menu *get_bootloader_menu(struct ui_context *ui)
 {
 	struct altfw_info *node;
-	ListNode *head;
+	struct list_node *head;
 	uint32_t num_bootloaders = 0;
 	struct ui_menu_item *items;
 	size_t num_items;

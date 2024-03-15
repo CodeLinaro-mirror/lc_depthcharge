@@ -15,6 +15,7 @@
  * GNU General Public License for more details.
  */
 
+#include <commonlib/list.h>
 #include <libpayload.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -22,7 +23,6 @@
 #include <vb2_gpt.h>
 
 #include "base/gpt.h"
-#include "base/list.h"
 #include "base/sparse.h"
 #include "ctype.h"
 #include "drivers/storage/blockdev.h"
@@ -31,12 +31,11 @@
 
 int fastboot_do_disk_init(struct FastbootOps *fb, bool send_fail)
 {
-	ListNode *devs;
+	struct list_node *devs;
 
 	/* Disk already initialized */
 	if (fb->disk)
 		return 0;
-
 	uint32_t count = get_all_bdevs(BLOCKDEV_FIXED, &devs);
 
 	if (count != 1) {

@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright 2022 Google LLC.  */
 
+#include <commonlib/list.h>
 #include <libpayload.h>
 
 #include "base/fw_config.h"
 #include "base/init_funcs.h"
-#include "base/list.h"
+
 #include "board/skyrim/include/variant.h"
 #include "drivers/bus/i2c/designware.h"
 #include "drivers/bus/i2c/i2c.h"

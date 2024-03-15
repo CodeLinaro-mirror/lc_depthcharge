@@ -3,11 +3,11 @@
  * Copyright 2014 The ChromiumOS Authors
  */
 
+#include <commonlib/list.h>
 #include <vb2_api.h>
 #include <vb2_gpt.h>
 #include <vboot_api.h>
 
-#include "base/list.h"
 #include "debug/cli/common.h"
 #include "drivers/storage/blockdev.h"
 
@@ -139,7 +139,7 @@ static int storage_part(int argc, char *const argv[])
 	GptData gpt;
 	GptHeader *header;
 	GptEntry *entry;
-	ListNode *devs;
+	struct list_node *devs;
 
 	const Guid guid_unused = GPT_ENT_TYPE_UNUSED;
 
@@ -215,18 +215,18 @@ static int storage_part(int argc, char *const argv[])
 static int storage_init(int argc, char *const argv[])
 {
 	int i, count;
-	const ListNode *controllers[] = {
+	const struct list_node *controllers[] = {
 		&fixed_block_dev_controllers,
 		&removable_block_dev_controllers
 	};
 
-	const ListNode *devices[] = {
+	const struct list_node *devices[] = {
 		&fixed_block_devices,
 		&removable_block_devices
 	};
 
 	for (i = 0; i < ARRAY_SIZE(controllers); i++)
-		for (const ListNode *node = controllers[i]->next;
+		for (const struct list_node *node = controllers[i]->next;
 		     node;
 		     node = node->next) {
 			BlockDevCtrlr *bdc;
@@ -238,7 +238,7 @@ static int storage_init(int argc, char *const argv[])
 		}
 
 	for (count = i = 0; i < ARRAY_SIZE(devices); i++)
-		for (const ListNode *node = devices[i]->next;
+		for (const struct list_node *node = devices[i]->next;
 		     node;
 		     node = node->next) {
 			BlockDev *bd;

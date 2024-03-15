@@ -1219,7 +1219,7 @@ static int ufs_add_device(UfsCtlr *ufs, uint32_t lun)
 
 UfsCtlr *ufs_get_ctlr(void)
 {
-	ListNode *ctrlrs = &fixed_block_dev_controllers;
+	struct list_node *ctrlrs = &fixed_block_dev_controllers;
 	BlockDevCtrlr *ctrlr;
 
 	list_for_each(ctrlr, *ctrlrs, list_node) {

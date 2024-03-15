@@ -43,7 +43,7 @@ static const int CROS_EC_HASH_TIMEOUT_MS = 4000;
 static const int CROS_EC_HASH_CHECK_DELAY_MS = 10;
 
 /* List of registered chip drivers to perform auxfw update */
-ListNode ec_aux_fw_chip_list;
+struct list_node ec_aux_fw_chip_list;
 
 static int ec_init(CrosEc *me);
 
