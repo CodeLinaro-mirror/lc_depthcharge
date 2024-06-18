@@ -104,3 +104,11 @@ uint64_t get_us_since_pre_cpu_reset(void)
 
 	return timer_us(0) - (ts_table->base_time - earliest_stamp) / tick_freq_mhz;
 }
+
+int timestamp_tick_freq_mhz(void)
+{
+	if (ts_table)
+		return ts_table->tick_freq_mhz;
+
+	return 0;
+}
