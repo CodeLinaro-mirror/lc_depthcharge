@@ -34,7 +34,7 @@
 #define TCSR_WIFI1_GLB_CFG		((void *)0x01949004)
 #define TCSR_PNOC_SNOC_MEMTYPE_M0_M2	((void *)0x01957004)
 
-int set_wifi_calibration(DeviceTree *tree);
+int set_wifi_calibration(struct device_tree *tree);
 
 #define TCSR_BOOT_MISC_DETECT		((void *)0x0193D100)
 #define TCSR_RESET_DEBUG_SW_ENTRY	((void *)0x01940000)

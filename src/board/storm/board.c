@@ -119,7 +119,7 @@ static const DtPathMap calibration_maps[] = {
 	{}
 };
 
-static int fix_device_tree(DeviceTreeFixup *fixup, DeviceTree *tree)
+static int fix_device_tree(struct device_tree_fixup *fixup, struct device_tree *tree)
 {
 	int rv;
 
@@ -131,7 +131,7 @@ static int fix_device_tree(DeviceTreeFixup *fixup, DeviceTree *tree)
 	return rv;
 }
 
-static DeviceTreeFixup ipq_enet_fixup = {
+static struct device_tree_fixup ipq_enet_fixup = {
 	.fixup = fix_device_tree
 };
 

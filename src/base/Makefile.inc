@@ -13,7 +13,6 @@
 
 depthcharge-y += android_misc.c
 depthcharge-y += cleanup_funcs.c
-depthcharge-y += device_tree.c
 depthcharge-y += dt_set_macs.c
 depthcharge-y += dt_set_wifi_calibration.c
 depthcharge-y += elog.c

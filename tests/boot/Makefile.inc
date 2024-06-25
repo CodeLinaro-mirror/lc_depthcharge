@@ -10,4 +10,3 @@ commandline-test-srcs += src/boot/commandline.c
 
 memchipinfo-test-srcs += tests/boot/memchipinfo.c
 memchipinfo-test-srcs += tests/helpers/device_tree.c
-memchipinfo-test-srcs += src/base/device_tree.c

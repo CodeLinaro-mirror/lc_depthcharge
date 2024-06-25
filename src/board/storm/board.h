@@ -24,7 +24,7 @@
 #define QFPROM_CORR_PTE_ROW0_LSB	(QFPROM_CORR_BASE + 0xB8)
 #define QFPROM_CORR_PTE_ROW0_MSB	(QFPROM_CORR_BASE + 0xBC)
 
-int set_wifi_calibration(DeviceTree *tree);
+int set_wifi_calibration(struct device_tree *tree);
 int board_wan_port_number(void);
 
 /* Authoritative copy in http://go/jetstream-board-ids */
