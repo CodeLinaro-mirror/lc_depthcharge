@@ -384,18 +384,13 @@ void fit_add_ramdisk(struct device_tree *tree, void *ramdisk_addr,
 	dt_add_u32_prop(node, "linux,initrd-end", end);
 }
 
-int fit_add_pvmfw(struct device_tree *tree, void *pvmfw_addr,
-		  size_t pvmfw_size)
+int fit_add_pvmfw(struct device_tree *tree, void *pvmfw_addr, size_t pvmfw_size)
 {
-	const char *reserved_mem[] = {
-		"reserved-memory",
-		"pkvm_guest_firmware",
-		NULL
-	};
+	static const char *reserved_mem[] = {"reserved-memory", "pkvm_guest_firmware", NULL};
 
 	uint32_t addr_cells = 1, size_cells = 1;
-	uint64_t reg_addr = (uint64_t) (uintptr_t) pvmfw_addr;
-	uint64_t reg_size = (uint64_t) pvmfw_size;
+	uint64_t reg_addr = (uintptr_t)pvmfw_addr;
+	uint64_t reg_size = pvmfw_size;
 	struct device_tree_node *node;
 
 	/* Get or create /reserved-memory/pkvm-guest-firmware-memory node */
@@ -407,14 +402,10 @@ int fit_add_pvmfw(struct device_tree *tree, void *pvmfw_addr,
 	}
 
 	/* Add required node properties */
-	dt_add_string_prop(node, "compatible",
-			   "linux,pkvm-guest-firmware-memory");
-
+	dt_add_string_prop(node, "compatible", "linux,pkvm-guest-firmware-memory");
 	dt_add_reg_prop(node, &reg_addr, &reg_size, 1, addr_cells, size_cells);
-
 	dt_add_bin_prop(node, "no-map", NULL, 0);
 
-	printf("pvmfw added to reserved-memory\n");
 	return 0;
 }
 

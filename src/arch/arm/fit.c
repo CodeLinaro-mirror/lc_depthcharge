@@ -101,7 +101,7 @@ int boot(struct boot_info *bi)
 	if (CONFIG(ANDROID_PVMFW) && bi->pvmfw_addr && bi->pvmfw_size &&
 	    fit_add_pvmfw(tree, bi->pvmfw_addr, bi->pvmfw_size) != 0) {
 		/*
-		 * Failed to add pvmfw node, clear the pvmfw with secrects from
+		 * Failed to add pvmfw node, clear the pvmfw with secrets from
 		 * memory.
 		 */
 		printf("ERROR: Failed to add pvmfw reserved mem node!\n");
