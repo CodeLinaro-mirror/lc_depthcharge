@@ -27,6 +27,7 @@
 #include "base/string_utils.h"
 #include "boot/android_bootconfig_params.h"
 #include "boot/android_pvmfw.h"
+#include "boot/android_bootconfig_params.h"
 #include "boot/bootconfig.h"
 #include "boot/commandline.h"
 #include "boot/multiboot.h"
@@ -65,7 +66,6 @@ static int fill_info_multiboot(struct boot_info *bi,
 // Legacy Android boot
 #define ANDROID_GKI_BOOT_HDR_SIZE 4096
 #define ANDROID_BDEV_KEY_STR "androidboot.boot_devices"
-#define ANDROID_BOOT_PART_UUID_KEY_STR "androidboot.boot_part_uuid"
 #define ANDROID_BOOT_A_PART_NUM 13
 #define ANDROID_BOOT_B_PART_NUM 14
 #define ANDROID_VBMETA_A_PART_NUM 15
@@ -241,16 +241,6 @@ static bool gki_is_recovery_boot(struct vb2_kernel_params *kparams)
 	}
 }
 
-static int add_android_boot_part_uuid(struct bootconfig *bc,
-				      struct vb2_kernel_params *kparams)
-{
-	char guid_str[GUID_STRLEN];
-
-	guid_to_string(kparams->partition_guid, guid_str, ARRAY_SIZE(guid_str));
-
-	return bootconfig_append(bc, ANDROID_BOOT_PART_UUID_KEY_STR, guid_str);
-}
-
 static bool gki_ramdisk_fragment_needed(struct vendor_ramdisk_table_entry_v4 *fragment,
 					bool recovery_boot)
 {
@@ -382,7 +372,7 @@ static int legacy_gki_setup_ramdisk(struct boot_info *bi,
 			return -1;
 		}
 
-		if (append_android_bootconfig_params(&bc) < 0)
+		if (append_android_bootconfig_params(&bc, kparams) < 0)
 			/*
 			 * On error, just log a message and continue with the rest of the
 			 * bootflow. The  idea is to get as many run-time bootconfig params
@@ -398,9 +388,6 @@ static int legacy_gki_setup_ramdisk(struct boot_info *bi,
 
 		/* Select boot mode */
 		if (modify_android_force_normal_boot(&bc, recovery_boot))
-			return -1;
-
-		if (add_android_boot_part_uuid(&bc, kparams))
 			return -1;
 
 		trailer = bootconfig_finalize(&bc,
@@ -486,6 +473,8 @@ static int gki_setup_bootconfig(struct boot_info *bi, struct vb2_kernel_params *
 		printf("GKI: Cannot copy vboot cmdline to bootconfig\n");
 		return -1;
 	}
+
+	append_android_bootconfig_params(&bc, kp);
 
 	trailer = bootconfig_finalize(&bc, 0);
 	if (!trailer) {
