@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <vb2_android_bootimg.h>
 
+#include "boot/android_bootconfig_params.h"
 #include "boot/bootconfig.h"
 #include "boot/commandline.h"
 #include "boot/multiboot.h"
@@ -89,6 +90,8 @@ static int gki_setup_bootconfig(struct boot_info *bi, VbSelectAndLoadKernelParam
 		printf("GKI: Cannot copy vboot cmdline to bootconfig\n");
 		return -1;
 	}
+
+	append_android_bootconfig_params(&bc, kp);
 
 	trailer = bootconfig_finalize(&bc, 0);
 	if (!trailer) {
