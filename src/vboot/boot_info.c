@@ -93,7 +93,9 @@ static int gki_setup_bootconfig(struct boot_info *bi, VbSelectAndLoadKernelParam
 
 	append_android_bootconfig_params(&bc, kp);
 
-	trailer = bootconfig_finalize(&bc, 0);
+	trailer = bootconfig_finalize(&bc,
+			sizeof(BOOTCONFIG_BOOTTIME_KEY_STR "=" BOOTCONFIG_MAX_BOOTTIME_STR) +
+			sizeof(BOOTCONFIG_DELIMITER));
 	if (!trailer) {
 		printf("GKI: Cannot finalize bootconfig\n");
 		return -1;

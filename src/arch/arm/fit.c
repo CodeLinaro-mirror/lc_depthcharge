@@ -117,5 +117,5 @@ int boot(struct boot_info *bi)
 
 	run_cleanup_funcs(CleanupOnHandoff);
 
-	return boot_arm_linux(fdt, kernel);
+	return boot_arm_linux(bi, fdt, kernel);
 }
