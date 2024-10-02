@@ -130,9 +130,6 @@ int boot(struct boot_info *bi)
 	dt_flatten(tree, fdt);
 
 	run_cleanup_funcs(CleanupOnHandoff);
-	if (CONFIG(BOOTCONFIG) &&
-	    append_android_bootconfig_boottime(bi))
-		return 1;
 
-	return boot_arm_linux(fdt, kernel);
+	return boot_arm_linux(bi, fdt, kernel);
 }
