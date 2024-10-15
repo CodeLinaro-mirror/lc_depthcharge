@@ -493,36 +493,6 @@ static void fastboot_cmd_oem_get_kernels(struct FastbootOps *fb, const char *arg
 	fastboot_succeed(fb);
 }
 
-#define BCB_RECOVERY_ARG0 "recovery"
-#define BCB_RECOVERY_ARG_FASTBOOT "--fastboot"
-
-static void fastboot_cmd_reboot_to_recovery(struct FastbootOps *fb, const char *arg)
-{
-	struct vb2_bootloader_message bcb;
-
-	memset(&bcb, 0, sizeof(bcb));
-	strcpy(bcb.command, "boot-recovery");
-
-	/* Setup recovery arguments depending on the target */
-	if (!strcmp("fastboot", arg)) {
-		snprintf(bcb.recovery, sizeof(bcb.recovery), "%s\n%s\n", BCB_RECOVERY_ARG0,
-			 BCB_RECOVERY_ARG_FASTBOOT);
-	} else if (!strcmp("recovery", arg)) {
-		snprintf(bcb.recovery, sizeof(bcb.recovery), "%s\n", BCB_RECOVERY_ARG0);
-	} else {
-		fastboot_fail(fb, "Unknown reboot target");
-		return;
-	}
-
-	fastboot_write_misc(fb, 0, &bcb, sizeof(bcb));
-
-	/*
-	 * TODO(b/370988331): We should force boot from internal drive without rebooting
-	 *                    to speed up this.
-	 */
-	fb->state = REBOOT;
-}
-
 static int fastboot_parse_ufs_desc_args(struct FastbootOps *fb,
 					const char *arg,
 					uint32_t *idn,
@@ -629,6 +599,56 @@ static void fastboot_cmd_oem_write_ufs_descriptor(struct FastbootOps *fb,
 
 	fastboot_info(fb, "Reboot when you're done writing descriptors.");
 	fastboot_succeed(fb);
+}
+
+#define BCB_RECOVERY_ARG0 "recovery"
+#define BCB_RECOVERY_ARG_FASTBOOT "--fastboot"
+
+static void fastboot_cmd_reboot_to_target(struct FastbootOps *fb, const char *arg)
+{
+	struct bootloader_message bcb;
+
+	if (fastboot_disk_gpt_init(fb))
+		return;
+
+	if (android_misc_bcb_read(fb->disk, fb->gpt, &bcb)) {
+		fastboot_info(fb, "Failed to read BCB from misc, trying to initialize new one");
+		memset(&bcb, 0, sizeof(bcb));
+	}
+
+	/* Setup recovery arguments depending on the target */
+	if (!strcmp("fastboot", arg)) {
+		memset(bcb.command, 0, sizeof(bcb.command));
+		memset(bcb.recovery, 0, sizeof(bcb.recovery));
+
+		strcpy(bcb.command, BCB_CMD_BOOT_RECOVERY);
+		snprintf(bcb.recovery, sizeof(bcb.recovery), "%s\n%s\n", BCB_RECOVERY_ARG0,
+			 BCB_RECOVERY_ARG_FASTBOOT);
+	} else if (!strcmp("recovery", arg)) {
+		memset(bcb.command, 0, sizeof(bcb.command));
+		memset(bcb.recovery, 0, sizeof(bcb.recovery));
+
+		strcpy(bcb.command, BCB_CMD_BOOT_RECOVERY);
+		snprintf(bcb.recovery, sizeof(bcb.recovery), "%s\n", BCB_RECOVERY_ARG0);
+	} else if (!strcmp("bootloader", arg)) {
+		memset(bcb.command, 0, sizeof(bcb.command));
+		strcpy(bcb.command, BCB_CMD_BOOTONCE_BOOTLOADER);
+	} else {
+		fastboot_fail(fb, "Unknown reboot target");
+		return;
+	}
+
+	if (android_misc_bcb_write(fb->disk, fb->gpt, &bcb)) {
+		fastboot_fail(fb, "Failed to write reboot command to misc");
+		return;
+	}
+
+	fastboot_succeed(fb);
+	/*
+	 * TODO(b/370988331): We should force boot from internal drive without rebooting
+	 *                    to speed up this.
+	 */
+	fb->state = REBOOT;
 }
 
 static void fastboot_cmd_reboot(struct FastbootOps *fb, const char *arg)
@@ -826,7 +846,7 @@ struct fastboot_cmd fastboot_cmds[] = {
 	CMD_ARGS("oem set-successful", ':', fastboot_cmd_oem_set_successful),
 	CMD_ARGS("oem read-ufs-descriptor", ':', fastboot_cmd_oem_read_ufs_descriptor),
 	CMD_ARGS("oem write-ufs-descriptor", ':', fastboot_cmd_oem_write_ufs_descriptor),
-	CMD_ARGS("reboot", '-', fastboot_cmd_reboot_to_recovery),
+	CMD_ARGS("reboot", '-', fastboot_cmd_reboot_to_target),
 	CMD_NO_ARGS("reboot", fastboot_cmd_reboot),
 	CMD_ARGS("set_active", ':', fastboot_cmd_set_active),
 	{
