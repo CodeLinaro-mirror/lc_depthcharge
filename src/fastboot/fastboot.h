@@ -130,7 +130,6 @@ void fastboot_reset_session(struct FastbootOps *fb);
 /* Resets the state of the data staging area */
 void fastboot_reset_staging(struct FastbootOps *fb);
 
-
 /* Responses to the client */
 void fastboot_send_fmt(struct FastbootOps *fb, enum fastboot_response_type t,
 		       const char *fmt, ...) __attribute__((format(printf, 3, 4)));
@@ -147,10 +146,10 @@ void fastboot_send_fmt(struct FastbootOps *fb, enum fastboot_response_type t,
 #define fastboot_text(fb, fmt, ...) \
 	fastboot_send_fmt((fb), FASTBOOT_RES_TEXT, (fmt), ##__VA_ARGS__)
 
-// Sends an empty OKAY.
-#define fastboot_succeed(fb) fastboot_send_fmt((fb), FASTBOOT_RES_OKAY, "%s", "")
+/* Sends an empty OKAY */
+#define fastboot_succeed(fb) fastboot_send_fmt((fb), FASTBOOT_RES_OKAY, "")
 
-void fastboot_data(struct FastbootOps *fb, uint32_t bytes);
-void fastboot_upload_data(struct FastbootOps *fb, uint32_t bytes);
+/* Sends DATA with the length */
+#define fastboot_data(fb, len) fastboot_send_fmt((fb), FASTBOOT_RES_DATA, "%08x", (len))
 
 #endif /* __FASTBOOT_FASTBOOT_H__ */
