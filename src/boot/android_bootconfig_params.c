@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include <libpayload.h>
+#include <vb2_api.h>
+#include <lp_vboot.h>
 
 #include "base/init_funcs.h"
 #include "base/timestamp.h"
@@ -9,6 +11,8 @@
 #include "boot/bootconfig.h"
 #include "boot/commandline.h"
 #include "vboot/boot_policy.h"
+
+#define HWID_KEY_STR "androidboot.product.hardware.id"
 
 #define SERIAL_NUM_KEY_STR "androidboot.serialno"
 #define MAX_SERIAL_NUM_LENGTH CB_MAX_SERIALNO_LENGTH
@@ -19,6 +23,18 @@
 
 #define DISPLAY_ORIENTATION_KEY_STR "androidboot.surface_flinger.primary_display_orientation"
 #define MAX_DISPLAY_ORIENTATION_LENGTH sizeof("ORIENTATION_xxx")
+
+static int append_hwid(struct bootconfig *bc)
+{
+	char hwid[VB2_GBB_HWID_MAX_SIZE];
+	uint32_t hwid_size = sizeof(hwid);
+
+	if (vb2api_gbb_read_hwid(vboot_get_context(), hwid, &hwid_size)) {
+		printf("No HWID in GBB\n");
+		return -1;
+	}
+	return bootconfig_append_params(bc, HWID_KEY_STR, hwid);
+}
 
 static int append_serial_num(struct bootconfig *bc)
 {
@@ -65,6 +81,7 @@ enum bootconfig_param_index {
 	SERIAL_NUM,
 	BOOTTIME,
 	DISPLAY_ORIENTATION,
+	HWID,
 };
 
 static struct {
@@ -85,6 +102,11 @@ static struct {
 	[DISPLAY_ORIENTATION] = {
 		.name = DISPLAY_ORIENTATION_KEY_STR,
 		.append = append_display_orientation,
+		.exists = false,
+	},
+	[HWID] = {
+		.name = HWID_KEY_STR,
+		.append = append_hwid,
 		.exists = false,
 	},
 };
