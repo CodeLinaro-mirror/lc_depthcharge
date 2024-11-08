@@ -264,8 +264,8 @@ int write_sparse_image(struct FastbootOps *fb, struct fastboot_disk *disk,
 			}
 
 			/* Perform fill_write operation */
-			if (ops->fill_write(ops, part_addr, chunk_size_lba,
-					    *data_fill) != chunk_size_lba) {
+			if (blockdev_fill_write(ops, part_addr, chunk_size_lba,
+						*data_fill) != chunk_size_lba) {
 				fastboot_fail(fb, "Failed to write");
 				return -1;
 			}
