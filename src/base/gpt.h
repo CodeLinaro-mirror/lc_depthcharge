@@ -15,6 +15,9 @@
  * GNU General Public License for more details.
  */
 
+#ifndef __BASE_GPT_H__
+#define __BASE_GPT_H__
+
 /* Headers from vboot for GPT manipulation. */
 #include <gpt.h>
 #include <gpt_misc.h>
@@ -44,3 +47,5 @@ void free_gpt(BlockDev *bdev, GptData *gpt);
  * if there was not enough room.
  */
 char *guid_to_string(const uint8_t *guid, char *dest, size_t dest_size);
+
+#endif /* __BASE_GPT_H__ */
