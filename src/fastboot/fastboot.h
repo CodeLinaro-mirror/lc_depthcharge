@@ -57,7 +57,7 @@
 		FB_DEBUG_LINE(__VA_ARGS__);             \
 	} while(0)
 
-#define FASTBOOT_MSG_MAX 64
+#define FASTBOOT_MSG_MAX 256
 #define FASTBOOT_MAX_DOWNLOAD_SIZE ((uint64_t)CONFIG_KERNEL_SIZE)
 /* Maximum length of command packet as stated in the Fastboot documentation */
 #define FASTBOOT_COMMAND_MAX 4096
