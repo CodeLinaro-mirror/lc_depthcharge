@@ -1329,16 +1329,29 @@ int cros_ec_locate_pdc_chip(uint8_t port, struct ec_response_locate_chip *r)
 	return cros_ec_locate_chip(EC_CHIP_TYPE_PDC, port, r);
 }
 
-int cros_ec_pd_chip_info(int port, int renew,
-			 struct ec_response_pd_chip_info *r)
+int cros_ec_pd_chip_info(int port, int renew, struct ec_response_pd_chip_info *r)
 {
+	int ret;
 	const struct ec_params_pd_chip_info p = {
 		.port = port,
 		.live = renew,
 	};
 
-	return ec_command(cros_ec_get(), EC_CMD_PD_CHIP_INFO, 0,
-			   &p, sizeof(p), r, sizeof(*r));
+	/*
+	 * Check if EC_CMD_PD_CHIP_INFO(v2) is supported,
+	 * if not use EC_CMD_PD_CHIP_INFO instead.
+	 */
+	if (cmd_version_supported(cros_ec_get(), EC_CMD_PD_CHIP_INFO, 2))
+		ret = ec_command(cros_ec_get(), EC_CMD_PD_CHIP_INFO, 2,
+				&p, sizeof(p),
+				(struct ec_response_pd_chip_info_v2 *)r,
+				sizeof(struct ec_response_pd_chip_info_v2));
+	else
+		ret = ec_command(cros_ec_get(), EC_CMD_PD_CHIP_INFO, 0,
+				&p, sizeof(p),
+				r, sizeof(struct ec_response_pd_chip_info));
+
+	return ret;
 }
 
 int cros_ec_get_usb_pd_mux_info(int port, uint8_t *mux_state)
