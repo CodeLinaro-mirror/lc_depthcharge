@@ -25,6 +25,10 @@
 
 #define HWID_KEY_STR "androidboot.product.hardware.id"
 
+#define SKU_ID_KEY_STR "androidboot.product.hardware.sku"
+/* 20 characters for model name. Suffix with 12 characters for SKU ID */
+#define MAX_SKU_ID_LENGTH 32
+
 static int append_hwid(void *bootc_start, size_t bootc_size, size_t buf_size)
 {
 	char hwid[VB2_GBB_HWID_MAX_SIZE];
@@ -82,11 +86,30 @@ static int append_display_orientation(void *bootc_start, size_t bootc_size, size
 					bootc_start, bootc_size, buf_size);
 }
 
+static int append_skuid(void *bootc_start, size_t bootc_size, size_t buf_size)
+{
+	char sku_id_str[MAX_SKU_ID_LENGTH];
+	uint32_t sku_id;
+	struct cb_mainboard *mainboard =
+		phys_to_virt(lib_sysinfo.cb_mainboard);
+	const char *mb_part_string = cb_mb_part_string(mainboard);
+
+	sku_id = lib_sysinfo.sku_id;
+	int len = snprintf(sku_id_str, sizeof(sku_id_str), "%s_%u", mb_part_string, sku_id);
+	if (len < 0 || len >= sizeof(sku_id_str))
+		return -1;
+
+	sku_id_str[0] = tolower(sku_id_str[0]);
+	return append_bootconfig_params(SKU_ID_KEY_STR, sku_id_str,
+					bootc_start, bootc_size, buf_size);
+}
+
 enum bootconfig_param_index {
 	SERIAL_NUM,
 	BOOTTIME,
 	DISPLAY_ORIENTATION,
 	HWID,
+	SKU_ID,
 };
 
 static struct {
@@ -112,6 +135,11 @@ static struct {
 	[HWID] = {
 		.name = HWID_KEY_STR,
 		.append = append_hwid,
+		.exists = false,
+	},
+	[SKU_ID] = {
+		.name = SKU_ID_KEY_STR,
+		.append = append_skuid,
 		.exists = false,
 	},
 };
