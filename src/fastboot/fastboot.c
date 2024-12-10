@@ -20,6 +20,7 @@
 
 #include <stdlib.h>
 #include "die.h"
+#include "drivers/power/power.h"
 #include "fastboot/cmd.h"
 #include "fastboot/tcp.h"
 #include "fastboot/usb.h"
@@ -232,5 +233,5 @@ void fastboot_run(void)
 		fb_session->release(fb_session);
 
 	if (final_state == REBOOT)
-		reboot();
+		cold_reboot();
 }
