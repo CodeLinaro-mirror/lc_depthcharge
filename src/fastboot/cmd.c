@@ -154,7 +154,7 @@ static void fastboot_cmd_flash(struct FastbootOps *fb, const char *arg)
 		return;
 	}
 
-	fastboot_write(fb, &disk, arg, data, (uint32_t)data_len, 0);
+	fastboot_write(fb, &disk, arg, 0, data, (uint32_t)data_len);
 	fastboot_disk_destroy(&disk);
 }
 

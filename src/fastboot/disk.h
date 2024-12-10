@@ -43,7 +43,8 @@ void fastboot_write_raw(struct FastbootOps *fb, struct fastboot_disk *disk,
 			const uint64_t start_block, const uint64_t block_count,
 			void *data, size_t data_len);
 void fastboot_write(struct FastbootOps *fb, struct fastboot_disk *disk,
-		    const char *partition_name, void *data, size_t data_len, size_t offset);
+		    const char *partition_name, const uint64_t blocks_offset,
+		    void *data, size_t data_len);
 bool fastboot_read(struct fastboot_disk *disk, const char *partition_name, void *data,
 		   size_t data_len, size_t offset);
 void fastboot_erase(struct FastbootOps *fb, struct fastboot_disk *disk,
