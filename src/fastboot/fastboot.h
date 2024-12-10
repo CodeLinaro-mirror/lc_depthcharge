@@ -23,24 +23,11 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-//#define NDEBUG 0
-
-#ifndef NDEBUG
 #define FB_DEBUG(...)                                                          \
 	do {                                                                   \
 		printf("%s: ", __func__);                                      \
 		printf(__VA_ARGS__);                                           \
 	} while (0)
-
-#define FB_DEBUG_LINE(...)             \
-	do {                           \
-		FB_DEBUG(__VA_ARGS__); \
-		putchar('\n');         \
-	} while (0)
-#else
-#define FB_DEBUG(...)
-#define FB_DEBUG_LINE(...)
-#endif
 
 #if 0
 /* This is _very_ slow when transferring data */
