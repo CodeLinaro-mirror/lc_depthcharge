@@ -17,9 +17,9 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <vb2_android_misc.h>
 #include <vb2_gpt.h>
 
+#include "base/android_misc.h"
 #include "base/gpt.h"
 #include "drivers/storage/ufs.h"
 #include "fastboot/cmd.h"
@@ -158,298 +158,263 @@ static void fastboot_cmd_erase(struct FastbootOps *fb, const char *arg)
 	fastboot_erase(fb, arg);
 }
 
-static bool fastboot_get_cmdline_offset(struct FastbootOps *fb,
-					enum vb2_fastboot_cmdline_magic magic,
-					size_t *offset)
+static bool is_cmd_quote(const char c, bool bootconfig)
 {
-	switch (magic) {
-	case VB2_FASTBOOT_CMDLINE_MAGIC:
-		*offset = VB2_MISC_VENDOR_SPACE_FASTBOOT_CMDLINE_OFFSET;
-		return true;
-	case VB2_FASTBOOT_BOOTCONFIG_MAGIC:
-		*offset = VB2_MISC_VENDOR_SPACE_FASTBOOT_BOOTCONFIG_OFFSET;
-		return true;
-	default:
-		FB_FAIL_AND_DEBUG(fb, "Unknown magic: 0x%x\n", magic);
-		return false;
-	}
+	return c == '"' || (bootconfig && c == '\'');
 }
 
-static bool fastboot_read_misc_cmdline(struct FastbootOps *fb,
-				       struct vb2_fastboot_cmdline *fb_cmd,
-				       enum vb2_fastboot_cmdline_magic magic)
+static char *cmd_find_end(char *cmdline, bool bootconfig)
 {
-	struct fastboot_disk disk;
-	size_t offset;
-	size_t offset_from_buf = 0;
-	size_t buffer_len;
-	void *buffer;
+	char in_quote = 0;
 
-	if (!fastboot_get_cmdline_offset(fb, magic, &offset))
-		return false;
-
-	if (!fastboot_disk_init(&disk)) {
-		FB_FAIL_AND_DEBUG(fb, "Failed to init disk");
-		return false;
-	}
-
-	buffer = fb_cmd;
-	buffer_len = sizeof(struct vb2_fastboot_cmdline);
-	/* Allocate block aligned buffer if size or offset isn't block aligned */
-	if (buffer_len % disk.disk->block_size || offset % disk.disk->block_size) {
-		offset_from_buf = offset % disk.disk->block_size;
-		offset -= offset_from_buf;
-		buffer_len += offset_from_buf;
-		buffer_len = ALIGN_UP(buffer_len, disk.disk->block_size);
-		buffer = malloc(buffer_len);
-		if (buffer == NULL) {
-			FB_FAIL_AND_DEBUG(fb, "memory allocation failed");
-			fastboot_disk_destroy(&disk);
-			return false;
+	for (; *cmdline; cmdline++) {
+		if (is_cmd_quote(*cmdline, bootconfig)) {
+			/*
+			 * Exit in_quote state only if ending quote match with
+			 * the starting one
+			 */
+			if (in_quote == *cmdline)
+				in_quote = 0;
+			else if (!in_quote)
+				in_quote = *cmdline;
+			continue;
 		}
+		if (!in_quote && is_android_misc_cmd_separator(*cmdline, bootconfig))
+			break;
 	}
 
-	if (!fastboot_read(&disk, GPT_ENT_NAME_ANDROID_MISC, buffer,
-			   buffer_len, offset)) {
-		FB_FAIL_AND_DEBUG(fb, "Failed to read misc partition (magic 0x%x, offset %ld)",
-				  magic, offset);
-		free(buffer);
-		fastboot_disk_destroy(&disk);
-		return false;
-	}
-
-	fastboot_disk_destroy(&disk);
-
-	if (fb_cmd != buffer) {
-		memcpy(fb_cmd, buffer + offset_from_buf, sizeof(struct vb2_fastboot_cmdline));
-		free(buffer);
-	}
-
-	if (!vb2_is_fastboot_cmdline_valid(fb_cmd, magic)) {
-		FB_FAIL_AND_DEBUG(fb, "Invalid cmdline data stored in misc");
-		return false;
-	}
-
-	return true;
-}
-
-static void fastboot_write_misc(struct FastbootOps *fb, size_t offset, void *data,
-				size_t data_len)
-{
-	struct fastboot_disk disk;
-	size_t offset_from_buf = 0;
-	size_t buffer_len;
-	void *buffer;
-
-	if (!fastboot_disk_init(&disk)) {
-		fastboot_fail(fb, "Failed to init disk");
-		return;
-	}
-
-	buffer = data;
-	buffer_len = data_len;
-	/* Allocate block aligned buffer if size or offset isn't block aligned */
-	if (buffer_len % disk.disk->block_size || offset % disk.disk->block_size) {
-		offset_from_buf = offset % disk.disk->block_size;
-		offset -= offset_from_buf;
-		buffer_len += offset_from_buf;
-		buffer_len = ALIGN_UP(buffer_len, disk.disk->block_size);
-		buffer = malloc(buffer_len);
-		if (buffer == NULL) {
-			fastboot_fail(fb, "memory allocation failed");
-			fastboot_disk_destroy(&disk);
-			return;
-		}
-		if (!fastboot_read(&disk, GPT_ENT_NAME_ANDROID_MISC, buffer,
-				   buffer_len, offset)) {
-			fastboot_fail(fb, "Failed to read misc partition (offset %ld)",
-				      offset);
-			free(buffer);
-			fastboot_disk_destroy(&disk);
-			return;
-		}
-		memcpy(buffer + offset_from_buf, data, data_len);
-	}
-
-	fastboot_write(fb, &disk, GPT_ENT_NAME_ANDROID_MISC, buffer,
-		       buffer_len, offset);
-
-	if (data != buffer)
-		free(buffer);
-
-	fastboot_disk_destroy(&disk);
-}
-
-static void fastboot_write_misc_cmdline(struct FastbootOps *fb,
-					struct vb2_fastboot_cmdline *fb_cmd,
-					enum vb2_fastboot_cmdline_magic magic)
-{
-	size_t offset;
-
-	if (!fastboot_get_cmdline_offset(fb, magic, &offset))
-		return;
-
-	fb_cmd->magic = magic;
-	fb_cmd->version = 0;
-	vb2_update_fastboot_cmdline_checksum(fb_cmd);
-
-	fastboot_write_misc(fb, offset, fb_cmd, sizeof(struct vb2_fastboot_cmdline));
+	return cmdline;
 }
 
 static void fastboot_cmd_cmdline_get(struct FastbootOps *fb, const char *arg,
-				     enum vb2_fastboot_cmdline_magic magic)
+				     bool bootconfig)
 {
-	struct vb2_fastboot_cmdline fb_cmd;
-	bool in_quote = false;
+	struct android_misc_oem_cmdline cmd;
+	char *cmdline;
 	char *param;
 
-	if (!fastboot_read_misc_cmdline(fb, &fb_cmd, magic))
+	if (fastboot_disk_gpt_init(fb))
 		return;
 
-	param = fb_cmd.cmdline;
-	for (int i = 0; i < fb_cmd.len; i++) {
-		if (fb_cmd.cmdline[i] == '"') {
-			in_quote = !in_quote;
-			continue;
-		}
-		if (in_quote)
-			continue;
-
-		if (!isspace(fb_cmd.cmdline[i]))
-			continue;
-
-		fb_cmd.cmdline[i] = '\0';
+	if (android_misc_oem_cmdline_read(fb->disk, fb->gpt, &cmd))
+		/* Failed to read cmdline, treat it as empty */
+		cmdline = "\0";
+	else
+		cmdline = android_misc_get_oem_cmd(&cmd, bootconfig);
+	if (*cmdline == '\0')
+		fastboot_info(fb, "<empty>");
+	while (*cmdline) {
+		param = cmdline;
+		cmdline = cmd_find_end(cmdline, bootconfig);
+		*cmdline++ = '\0';
+		while (is_android_misc_cmd_separator(*cmdline, bootconfig))
+			cmdline++;
 		fastboot_info(fb, "%s", param);
-		param = &fb_cmd.cmdline[i + 1];
 	}
 
 	fastboot_succeed(fb);
 }
 
 static void fastboot_cmd_cmdline_add(struct FastbootOps *fb, const char *arg,
-				     enum vb2_fastboot_cmdline_magic magic)
+				     bool bootconfig)
 {
-	struct vb2_fastboot_cmdline fb_cmd;
-	const int arg_len = strlen(arg);
+	struct android_misc_oem_cmdline cmd;
 
-	if (!fastboot_read_misc_cmdline(fb, &fb_cmd, magic))
-		return;
-
-	if (arg_len + fb_cmd.len + 1 >= sizeof(fb_cmd.cmdline)) {
-		fastboot_fail(fb, "Not enough space in fastboot cmdline");
+	if (*arg == '\0') {
+		fastboot_fail(fb, "Missing argument");
 		return;
 	}
 
-	memcpy(&fb_cmd.cmdline[fb_cmd.len], arg, arg_len);
-	fb_cmd.len += arg_len + 1;
-	fb_cmd.cmdline[fb_cmd.len - 1] = ' ';
+	if (fastboot_disk_gpt_init(fb))
+		return;
 
-	fastboot_write_misc_cmdline(fb, &fb_cmd, magic);
+	if (android_misc_oem_cmdline_read(fb->disk, fb->gpt, &cmd)) {
+		/* Let's continue with fresh cmd */
+		android_misc_reset_oem_cmd(&cmd);
+	}
+
+	if (android_misc_append_oem_cmd(&cmd, arg, bootconfig)) {
+		fastboot_fail(fb, "Failed to append to cmdline");
+		return;
+	}
+
+	if (android_misc_oem_cmdline_write(fb->disk, fb->gpt, &cmd)) {
+		fastboot_fail(fb, "Failed to write cmdline to misc");
+		return;
+	}
+
+	fastboot_succeed(fb);
+}
+
+static bool is_matching(const char *param, size_t param_len, const char *pattern)
+{
+	const char *next_wild = pattern;
+	size_t pattern_len;
+	bool wild_match = false;
+
+	if (*pattern == '*') {
+		pattern++;
+		/* Single '*' match with everything */
+		if (*pattern == '\0')
+			return true;
+		/* Wild match only if '*' wasn't escaped by second '*' */
+		if (*pattern != '*') {
+			wild_match = true;
+			next_wild = pattern;
+		} else {
+			/* Skip this '*' when looking for the next wild char */
+			next_wild = pattern + 1;
+		}
+	}
+	next_wild = strchr(next_wild, '*');
+	if (!next_wild)
+		pattern_len = strlen(pattern);
+	else
+		pattern_len = next_wild - pattern;
+
+	do {
+		if (param_len < pattern_len)
+			return false;
+
+		if (!strncmp(param, pattern, pattern_len)) {
+			/* If this is end of pattern, we need exact match */
+			if (!next_wild) {
+				if (param_len == pattern_len)
+					return true;
+			} else {
+				if (is_matching(param + pattern_len, param_len - pattern_len,
+						next_wild))
+					return true;
+			}
+		}
+		/* If we are wildly matching, try at next character */
+		param_len--;
+		param++;
+	} while (wild_match);
+
+	return false;
 }
 
 static void fastboot_cmd_cmdline_del(struct FastbootOps *fb, const char *arg,
-				     enum vb2_fastboot_cmdline_magic magic)
+				     bool bootconfig)
 {
-	struct vb2_fastboot_cmdline fb_cmd;
-	const int arg_len = strlen(arg);
-	bool in_quote = false;
+	struct android_misc_oem_cmdline cmd;
+	int param_len;
+	char *cmdline;
+	char *param_end;
 	char *param;
+	bool modified_cmdline = false;
 
-	if (!fastboot_read_misc_cmdline(fb, &fb_cmd, magic))
-		return;
-
-	param = fb_cmd.cmdline;
-	for (int i = 0; i < fb_cmd.len; i++) {
-		if (fb_cmd.cmdline[i] == '"') {
-			in_quote = !in_quote;
-			continue;
-		}
-		if (in_quote)
-			continue;
-
-		if (!isspace(fb_cmd.cmdline[i]))
-			continue;
-
-		if (arg_len != fb_cmd.cmdline + i - param ||
-		    strncmp(param, arg, arg_len)) {
-			param = &fb_cmd.cmdline[i + 1];
-			continue;
-		}
-		/* Found parameter to remove */
-		break;
-	}
-	if (param >= fb_cmd.cmdline + fb_cmd.len) {
-		fastboot_fail(fb, "Parameter not found");
+	if (*arg == '\0') {
+		fastboot_fail(fb, "Missing argument");
 		return;
 	}
 
-	memmove(param, param + arg_len + 1,
-		fb_cmd.len - (param - fb_cmd.cmdline) - arg_len - 1);
-	fb_cmd.len -= arg_len + 1;
+	if (fastboot_disk_gpt_init(fb))
+		return;
 
-	fastboot_write_misc_cmdline(fb, &fb_cmd, magic);
+	if (android_misc_oem_cmdline_read(fb->disk, fb->gpt, &cmd)) {
+		fastboot_fail(fb, "Failed to read cmdline from misc");
+		return;
+	}
+
+	cmdline = android_misc_get_oem_cmd(&cmd, bootconfig);
+	param_end = cmdline;
+	do {
+		param = param_end;
+		param_end = cmd_find_end(param_end, bootconfig);
+		param_len = param_end - param;
+		if (is_matching(param, param_len, arg)) {
+			/* Remove also the delimiter if this isn't last parameter. */
+			if (*param_end != '\0')
+				param_len++;
+			if (android_misc_del_oem_cmd(&cmd, param - cmdline, param_len,
+						     bootconfig)) {
+				fastboot_fail(fb, "Failed to delete \"%.*s\" from cmdline",
+					      param_len, param);
+				return;
+			}
+			modified_cmdline = true;
+			param_end = param;
+			continue;
+		}
+		if (*param_end == '\0') {
+			if (modified_cmdline &&
+			    android_misc_oem_cmdline_write(fb->disk, fb->gpt, &cmd)) {
+				fastboot_fail(fb, "Failed to write cmdline to misc");
+				return;
+			}
+			fastboot_succeed(fb);
+			return;
+		}
+		param_end++;
+	} while (true);
 }
 
 static void fastboot_cmd_cmdline_set(struct FastbootOps *fb, const char *arg,
-				     enum vb2_fastboot_cmdline_magic magic)
+				     bool bootconfig)
 {
-	struct vb2_fastboot_cmdline fb_cmd;
-	const int arg_len = strlen(arg);
+	struct android_misc_oem_cmdline cmd;
 
-	if (arg_len + 1 >= sizeof(fb_cmd.cmdline)) {
-		fastboot_fail(fb, "Not enough space in fastboot cmdline");
+	if (fastboot_disk_gpt_init(fb))
+		return;
+
+	if (android_misc_oem_cmdline_read(fb->disk, fb->gpt, &cmd)) {
+		/* Let's continue with fresh cmd */
+		android_misc_reset_oem_cmd(&cmd);
+	}
+
+	if (android_misc_set_oem_cmd(&cmd, arg, bootconfig)) {
+		fastboot_fail(fb, "Failed to append to cmdline");
 		return;
 	}
 
-	if (arg_len > 0) {
-		memcpy(fb_cmd.cmdline, arg, arg_len);
-		fb_cmd.cmdline[arg_len] = ' ';
-		fb_cmd.len = arg_len + 1;
-	} else {
-		fb_cmd.len = 0;
+	if (android_misc_oem_cmdline_write(fb->disk, fb->gpt, &cmd)) {
+		fastboot_fail(fb, "Failed to write cmdline to misc");
+		return;
 	}
 
-	fastboot_write_misc_cmdline(fb, &fb_cmd, magic);
+	fastboot_succeed(fb);
 }
 
 static void fastboot_cmd_oem_cmdline_get(struct FastbootOps *fb, const char *arg)
 {
-	fastboot_cmd_cmdline_get(fb, arg, VB2_FASTBOOT_CMDLINE_MAGIC);
+	fastboot_cmd_cmdline_get(fb, arg, false);
 }
 
 static void fastboot_cmd_oem_cmdline_add(struct FastbootOps *fb, const char *arg)
 {
-	fastboot_cmd_cmdline_add(fb, arg, VB2_FASTBOOT_CMDLINE_MAGIC);
+	fastboot_cmd_cmdline_add(fb, arg, false);
 }
 
 static void fastboot_cmd_oem_cmdline_del(struct FastbootOps *fb, const char *arg)
 {
-	fastboot_cmd_cmdline_del(fb, arg, VB2_FASTBOOT_CMDLINE_MAGIC);
+	fastboot_cmd_cmdline_del(fb, arg, false);
 }
 
 static void fastboot_cmd_oem_cmdline_set(struct FastbootOps *fb, const char *arg)
 {
-	fastboot_cmd_cmdline_set(fb, arg, VB2_FASTBOOT_CMDLINE_MAGIC);
+	fastboot_cmd_cmdline_set(fb, arg, false);
 }
 
 static void fastboot_cmd_oem_bootconfig_get(struct FastbootOps *fb, const char *arg)
 {
-	fastboot_cmd_cmdline_get(fb, arg, VB2_FASTBOOT_BOOTCONFIG_MAGIC);
+	fastboot_cmd_cmdline_get(fb, arg, true);
 }
 
 static void fastboot_cmd_oem_bootconfig_add(struct FastbootOps *fb, const char *arg)
 {
-	fastboot_cmd_cmdline_add(fb, arg, VB2_FASTBOOT_BOOTCONFIG_MAGIC);
+	fastboot_cmd_cmdline_add(fb, arg, true);
 }
 
 static void fastboot_cmd_oem_bootconfig_del(struct FastbootOps *fb, const char *arg)
 {
-	fastboot_cmd_cmdline_del(fb, arg, VB2_FASTBOOT_BOOTCONFIG_MAGIC);
+	fastboot_cmd_cmdline_del(fb, arg, true);
 }
 
 static void fastboot_cmd_oem_bootconfig_set(struct FastbootOps *fb, const char *arg)
 {
-	fastboot_cmd_cmdline_set(fb, arg, VB2_FASTBOOT_BOOTCONFIG_MAGIC);
+	fastboot_cmd_cmdline_set(fb, arg, true);
 }
 
 // `fastboot oem get-kernels` returns a list of slot letter:kernel mapping.
