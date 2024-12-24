@@ -11,6 +11,8 @@
 ## GNU General Public License for more details.
 ##
 
+subdirs-$(CONFIG_UI_LVGL) += lvgl
+
 depthcharge-y += archive.c
 depthcharge-y += beep.c
 depthcharge-y += bitmap.c

@@ -16,6 +16,12 @@ config DETACHABLE
 	help
 	  Enable detachable navigation (power button + vol up/down) in menu UI.
 
+config UI_LVGL
+	bool "Whether to build firmware UI with LVGL"
+	default n
+	help
+	  Enable AP firmware UI with LVGL implementation. If false, use libpayload graphics.
+
 config SKIP_UI_DISPLAY
 	bool "Skip display in firmware UI (TURN OFF BEFORE RELEASE)"
 	default n

@@ -53,13 +53,13 @@ $(notdir $1): $1.elf
 PHONY += $(notdir $1)
 endef
 
-$(eval $(call declare_payload,$(DEPTHCHARGE),$$$$(depthcharge-objs) $$$$(vboot-objs) \
+$(eval $(call declare_payload,$(DEPTHCHARGE),$$$$(depthcharge-objs) $$$$(vboot-objs) $$$$(lvgl-objs) \
 	$(if $(filter y,$(CONFIG_FASTBOOT_IN_PROD)), \
 		$$$$(net-objs) $$$$(uip-objs) $$$$(fastboot-objs)),))
 
-$(eval $(call declare_payload,$(NETBOOT),$$$$(depthcharge-objs) \
+$(eval $(call declare_payload,$(NETBOOT),$$$$(depthcharge-objs) $$$$(lvgl-objs) \
 	$$$$(netboot-objs) $$$$(net-objs) $$$$(uip-objs),))
 
-$(eval $(call declare_payload,$(DEV),$$$$(depthcharge-objs) \
+$(eval $(call declare_payload,$(DEV),$$$$(depthcharge-objs) $$$$(lvgl-objs) \
 	$$$$(netboot-objs) $$$$(net-objs) $$$$(uip-objs) $$$$(dev-objs) \
 	$$$$(fastboot-objs) $$$$(vboot-objs),$(DONT_GC_NETBOOT)))
