@@ -252,7 +252,7 @@ endif
 $(foreach class,$(classes),$(eval $(class)-srcs:=$(sort $($(class)-srcs))))
 
 src-to-obj=$(addsuffix .$(1).o, $(basename $(patsubst src/%, $(obj)/%, $($(1)-srcs))))
-$(foreach class,$(classes),$(eval $(class)-objs:=$(call src-to-obj,$(class))))
+$(foreach class,$(classes),$(eval $(class)-objs+=$(call src-to-obj,$(class))))
 
 allsrcs:=$(foreach var, $(addsuffix -srcs,$(classes)), $($(var)))
 allobjs:=$(foreach var, $(addsuffix -objs,$(classes)), $($(var)))
@@ -295,7 +295,7 @@ $(foreach class,$(classes), \
 foreach-src=$(foreach file,$($(1)-srcs),$(eval $(call $(1)-objs_$(subst .,,$(suffix $(file)))_template,$(patsubst src/%,%,$(basename $(file))))))
 $(eval $(foreach class,$(classes),$(call foreach-src,$(class))))
 
-DEPENDENCIES = $(allobjs:.o=.d)
+DEPENDENCIES = $($(filter %.o,%(allobjs)):.o=.d)
 -include $(DEPENDENCIES)
 
 configuration_uis := menuconfig guiconfig
