@@ -429,7 +429,7 @@ static int gki_setup_ramdisk(struct boot_info *bi,
 			return -1;
 		}
 
-		ret = bootconfig_append_cmdline(&bc, kparams->vboot_cmdline_buffer);
+		ret = bootconfig_append_cmdline(&bc, kparams->vboot_bootconfig_buffer);
 		if (ret < 0) {
 			printf("GKI: Cannot copy avb cmdline to bootconfig\n");
 			return -1;
@@ -455,6 +455,8 @@ static int gki_setup_ramdisk(struct boot_info *bi,
 		bi->ramdisk_bootconfig_offset = (uintptr_t)bc.bootc_start -
 			(uintptr_t)vendor_ramdisk;
 	}
+
+	commandline_append(kparams->vboot_cmdline_buffer);
 
 	/* On init_boot there's no kernel, so ramdisk follows the header */
 	init_boot_ramdisk_src = (uint8_t *)init_hdr + ANDROID_GKI_BOOT_HDR_SIZE;
