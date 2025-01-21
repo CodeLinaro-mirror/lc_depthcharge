@@ -596,7 +596,7 @@ static int gki_setup_ramdisk(struct boot_info *bi,
 		}
 
 		vendor_hdr->bootconfig_size = bootconfig_append_cmdline(
-		    kparams->kernel_cmdline_buffer,
+		    kparams->kernel_bootconfig_buffer,
 		    (void *)bootc_ramdisk_addr,
 		    vendor_hdr->bootconfig_size);
 		if (vendor_hdr->bootconfig_size < 0) {
@@ -649,6 +649,8 @@ static int gki_setup_ramdisk(struct boot_info *bi,
 		/* Update bootconfig offset within ramdisk */
 		bi->ramdisk_bootconfig_offset = bootc_ramdisk_addr - (uintptr_t)vendor_ramdisk;
 	}
+
+	commandline_append(kparams->kernel_cmdline_buffer);
 
 	/* On init_boot there's no kernel, so ramdisk follows the header */
 	init_boot_ramdisk_src = (uint8_t *)init_hdr + ANDROID_GKI_BOOT_HDR_SIZE;

@@ -45,8 +45,10 @@
 
 /* Size of the buffer to convey cmdline properties to bootloader */
 #define KERNEL_CMDLINE_BUF_SIZE 3072
+/* Size of the buffer to convey bootconfig properties to bootloader */
+#define KERNEL_BOOTCONFIG_BUF_SIZE 3072
 
-_Static_assert(KERNEL_CMDLINE_BUF_SIZE < CONFIG_KERNEL_SIZE,
+_Static_assert(KERNEL_CMDLINE_BUF_SIZE + KERNEL_BOOTCONFIG_BUF_SIZE < CONFIG_KERNEL_SIZE,
 	      "Command line buffer too big");
 
 int vboot_in_recovery(void)
@@ -147,9 +149,13 @@ int vboot_select_and_load_kernel(void)
 
 	VbSelectAndLoadKernelParams kparams = {
 		.kernel_buffer = _kernel_start,
-		.kernel_buffer_size = CONFIG_KERNEL_SIZE - KERNEL_CMDLINE_BUF_SIZE,
+		.kernel_buffer_size = CONFIG_KERNEL_SIZE - KERNEL_CMDLINE_BUF_SIZE -
+				      KERNEL_BOOTCONFIG_BUF_SIZE,
 		.kernel_cmdline_buffer = (char *)_kernel_end - KERNEL_CMDLINE_BUF_SIZE,
 		.kernel_cmdline_size = KERNEL_CMDLINE_BUF_SIZE,
+		.kernel_bootconfig_buffer = (char *)_kernel_end - KERNEL_CMDLINE_BUF_SIZE -
+					   KERNEL_BOOTCONFIG_BUF_SIZE,
+		.kernel_bootconfig_size = KERNEL_BOOTCONFIG_BUF_SIZE,
 
 #if CONFIG(ANDROID_PVMFW)
 		.pvmfw_buffer = _pvmfw_start,
