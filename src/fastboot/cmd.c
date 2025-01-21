@@ -195,19 +195,27 @@ static void fastboot_cmd_cmdline_get(struct FastbootOps *fb,
 				     enum vb2_fastboot_cmdline_magic magic)
 {
 	struct vb2_fastboot_cmdline fb_cmd;
-	char *line;
+	bool in_quote = false;
+	char *param;
 
 	if (!fastboot_read_misc_cmdline(fb, &fb_cmd, magic))
 		return;
 
-	line = fb_cmd.cmdline;
+	param = fb_cmd.cmdline;
 	for (int i = 0; i < fb_cmd.len; i++) {
-		if (fb_cmd.cmdline[i] != '\n')
+		if (fb_cmd.cmdline[i] == '"') {
+			in_quote = !in_quote;
+			continue;
+		}
+		if (in_quote)
+			continue;
+
+		if (!isspace(fb_cmd.cmdline[i]))
 			continue;
 
 		fb_cmd.cmdline[i] = '\0';
-		fastboot_info(fb, "%s", line);
-		line = &fb_cmd.cmdline[i + 1];
+		fastboot_info(fb, "%s", param);
+		param = &fb_cmd.cmdline[i + 1];
 	}
 
 	fastboot_succeed(fb);
@@ -229,7 +237,7 @@ static void fastboot_cmd_cmdline_add(struct FastbootOps *fb,
 
 	memcpy(&fb_cmd.cmdline[fb_cmd.len], arg, arg_len);
 	fb_cmd.len += arg_len + 1;
-	fb_cmd.cmdline[fb_cmd.len - 1] = '\n';
+	fb_cmd.cmdline[fb_cmd.len - 1] = ' ';
 
 	fastboot_write_misc_cmdline(fb, &fb_cmd, magic);
 }
@@ -239,30 +247,39 @@ static void fastboot_cmd_cmdline_del(struct FastbootOps *fb,
 				     enum vb2_fastboot_cmdline_magic magic)
 {
 	struct vb2_fastboot_cmdline fb_cmd;
-	char *line;
+	bool in_quote = false;
+	char *param;
 
 	if (!fastboot_read_misc_cmdline(fb, &fb_cmd, magic))
 		return;
 
-	line = fb_cmd.cmdline;
+	param = fb_cmd.cmdline;
 	for (int i = 0; i < fb_cmd.len; i++) {
-		if (fb_cmd.cmdline[i] != '\n')
-			continue;
-
-		if (arg_len != fb_cmd.cmdline + i - line ||
-		    strncmp(line, arg, arg_len)) {
-			line = &fb_cmd.cmdline[i + 1];
+		if (fb_cmd.cmdline[i] == '"') {
+			in_quote = !in_quote;
 			continue;
 		}
-		/* Found line to remove */
+		if (in_quote)
+			continue;
+
+		if (!isspace(fb_cmd.cmdline[i]))
+			continue;
+
+		if (arg_len != fb_cmd.cmdline + i - param ||
+		    strncmp(param, arg, arg_len)) {
+			param = &fb_cmd.cmdline[i + 1];
+			continue;
+		}
+		/* Found parameter to remove */
 		break;
 	}
-	if (line >= fb_cmd.cmdline + fb_cmd.len) {
-		fastboot_fail(fb, "Line not found");
+	if (param >= fb_cmd.cmdline + fb_cmd.len) {
+		fastboot_fail(fb, "Parameter not found");
 		return;
 	}
 
-	memmove(line, line + arg_len + 1, fb_cmd.len - (line - fb_cmd.cmdline) - arg_len - 1);
+	memmove(param, param + arg_len + 1,
+		fb_cmd.len - (param - fb_cmd.cmdline) - arg_len - 1);
 	fb_cmd.len -= arg_len + 1;
 
 	fastboot_write_misc_cmdline(fb, &fb_cmd, magic);
@@ -281,7 +298,7 @@ static void fastboot_cmd_cmdline_set(struct FastbootOps *fb,
 
 	if (arg_len > 0) {
 		memcpy(fb_cmd.cmdline, arg, arg_len);
-		fb_cmd.cmdline[arg_len] = '\n';
+		fb_cmd.cmdline[arg_len] = ' ';
 		fb_cmd.len = arg_len + 1;
 	} else {
 		fb_cmd.len = 0;
