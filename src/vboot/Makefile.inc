@@ -14,7 +14,7 @@
 subdirs-y := callbacks crossystem nvdata stages ui util
 
 depthcharge-y += stages.c
-depthcharge-y += boot_policy.c
+depthcharge-y += boot_info.c
 depthcharge-y += firmware_id.c
 depthcharge-y += nvdata.c
 
