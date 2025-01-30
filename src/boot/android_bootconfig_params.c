@@ -11,7 +11,6 @@
 #include "boot/android_bootconfig_params.h"
 #include "boot/bootconfig.h"
 #include "boot/commandline.h"
-#include "vboot/boot_policy.h"
 
 #define SERIAL_NUM_KEY_STR "androidboot.serialno"
 #define MAX_SERIAL_NUM_LENGTH CB_MAX_SERIALNO_LENGTH
