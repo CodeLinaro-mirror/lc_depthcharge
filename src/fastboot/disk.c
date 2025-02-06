@@ -95,7 +95,6 @@ bool fastboot_disk_foreach_partition(struct fastboot_disk *disk,
 
 struct find_partition_ctx {
 	const char *name;
-	size_t name_len;
 	GptEntry *result;
 };
 
@@ -104,19 +103,16 @@ static bool find_partition_callback(void *ctx, int index, GptEntry *e,
 {
 	struct find_partition_ctx *fpctx = (struct find_partition_ctx *)ctx;
 
-	if (!strncmp(fpctx->name, partition_name, fpctx->name_len)) {
+	if (!strcmp(fpctx->name, partition_name)) {
 		fpctx->result = e;
 		return true;
 	}
 
 	return false;
 }
-GptEntry *fastboot_find_partition(struct fastboot_disk *disk,
-				  const char *partition_name,
-				  size_t partition_name_len)
+GptEntry *fastboot_find_partition(struct fastboot_disk *disk, const char *partition_name)
 {
 	struct find_partition_ctx fp = {.name = partition_name,
-					.name_len = partition_name_len,
 					.result = NULL};
 	fastboot_disk_foreach_partition(disk, find_partition_callback, &fp);
 	return fp.result;
@@ -139,8 +135,7 @@ GptEntry *fastboot_get_partition(struct fastboot_disk *disk, unsigned int index)
 	return (GptEntry *)&disk->gpt->primary_entries[index * h->size_of_entry];
 }
 
-bool fastboot_read(struct fastboot_disk *disk,
-		   const char *partition_name, size_t name_len, void *data,
+bool fastboot_read(struct fastboot_disk *disk, const char *partition_name, void *data,
 		   size_t data_len, size_t offset)
 {
 	if (offset % disk->disk->block_size) {
@@ -155,7 +150,7 @@ bool fastboot_read(struct fastboot_disk *disk,
 		return false;
 	}
 
-	GptEntry *e = fastboot_find_partition(disk, partition_name, name_len);
+	GptEntry *e = fastboot_find_partition(disk, partition_name);
 	if (!e) {
 		FB_DEBUG("Could not find partition\n");
 		return false;
@@ -187,10 +182,9 @@ bool fastboot_read(struct fastboot_disk *disk,
 }
 
 void fastboot_write(struct FastbootOps *fb, struct fastboot_disk *disk,
-		    const char *partition_name, size_t name_len, void *data,
-		    size_t data_len, size_t offset)
+		    const char *partition_name, void *data, size_t data_len, size_t offset)
 {
-	GptEntry *e = fastboot_find_partition(disk, partition_name, name_len);
+	GptEntry *e = fastboot_find_partition(disk, partition_name);
 	if (!e) {
 		fastboot_fail(fb, "Could not find partition");
 		return;
@@ -247,9 +241,9 @@ void fastboot_write(struct FastbootOps *fb, struct fastboot_disk *disk,
 }
 
 void fastboot_erase(struct FastbootOps *fb, struct fastboot_disk *disk,
-		    const char *partition_name, size_t name_len)
+		    const char *partition_name)
 {
-	GptEntry *e = fastboot_find_partition(disk, partition_name, name_len);
+	GptEntry *e = fastboot_find_partition(disk, partition_name);
 	if (!e) {
 		fastboot_fail(fb, "Could not find partition");
 		return;
