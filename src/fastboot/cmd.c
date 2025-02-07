@@ -22,6 +22,8 @@
 #include "gpt_misc.h"
 #include <stdlib.h>
 
+#define GPT_ENT_NAME_ANDROID_MISC "misc"
+
 static int parse_hex(const char *str, size_t len, uint32_t *ret)
 {
 	int valid = 0;
