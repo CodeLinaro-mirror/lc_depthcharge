@@ -201,29 +201,34 @@ fastboot_getvar_result_t fastboot_getvar(struct FastbootOps *fb, fastboot_var_t 
 					 const char *arg, size_t index, char *outbuf,
 					 size_t *outbuf_len)
 {
-	struct fastboot_disk disk;
+	GptEntry *part = NULL;
 	size_t used_len = 0;
-	char *suffix;
-	int ret;
+	char *name;
 
 	switch (var) {
-	case VAR_CURRENT_SLOT:
-		if (!fastboot_disk_init(&disk))
+	case VAR_CURRENT_SLOT: {
+		if (fastboot_disk_gpt_init(fb))
 			return STATE_DISK_ERROR;
 
-		if (GptNextKernelEntry(disk.gpt) == NULL) {
-			fastboot_disk_destroy(&disk);
-			return STATE_DISK_ERROR;
-		}
-
-		ret = GptGetActiveKernelPartitionSuffix(disk.gpt, &suffix);
-		fastboot_disk_destroy(&disk);
-		if (ret != GPT_SUCCESS)
+		/* Make sure that GptNextKernelEntry starts with fresh state */
+		if (GptInit(fb->gpt) != GPT_SUCCESS)
 			return STATE_DISK_ERROR;
 
-		used_len = snprintf(outbuf, *outbuf_len, "%s", suffix);
-		free(suffix);
+		part = GptNextKernelEntry(fb->gpt);
+		if (part == NULL)
+			return STATE_DISK_ERROR;
+
+		name = gpt_get_entry_name(part);
+		if (name == NULL || name[0] == '\0')
+			return STATE_DISK_ERROR;
+		/* Get last character */
+		while (name[1] != '\0')
+			name++;
+
+		used_len = snprintf(outbuf, *outbuf_len, "%s", name);
+		free(name);
 		break;
+	}
 	case VAR_DISK_BLOCK_COUNT:
 		if (!fastboot_disk_init(&disk))
 			return STATE_DISK_ERROR;
@@ -243,30 +248,14 @@ fastboot_getvar_result_t fastboot_getvar(struct FastbootOps *fb, fastboot_var_t 
 	case VAR_IS_USERSPACE:
 		used_len = snprintf(outbuf, *outbuf_len, "no");
 		break;
-	case VAR_PARTITION_SIZE: {
-		GptEntry *part = NULL;
-
+	case VAR_PARTITION_SIZE:
 		if (fastboot_disk_gpt_init(fb))
 			return STATE_DISK_ERROR;
 		if (arg != NULL) {
 			part = gpt_find_partition(fb->gpt, arg);
 			if (part == NULL)
 				return STATE_UNKNOWN_VAR;
-			}
 		} else {
-			char *name;
-			fastboot_getvar_result_t state =
-			    	fastboot_get_partition_name_by_index(&disk, index, &name, &part);
-			if (state != STATE_OK || name == NULL) {
-				fastboot_disk_destroy(&disk);
-				return state;
-			}
-			used_len = snprintf(outbuf, *outbuf_len, "%s:", name);
-			outbuf += used_len;
-			*outbuf_len -= used_len;
-			free(name);
-		}
-
 			/* There is no more partitions to get */
 			if (gpt_get_number_of_partitions(fb->gpt) <= index)
 				return STATE_LAST;
@@ -282,16 +271,15 @@ fastboot_getvar_result_t fastboot_getvar(struct FastbootOps *fb, fastboot_var_t 
 				return STATE_TRY_NEXT;
 			}
 
-			type_str = get_partition_type_string(name);
-
-			used_len = snprintf(outbuf, *outbuf_len, "%s:%s", name, type_str);
+			used_len = snprintf(outbuf, *outbuf_len, "%s:", name);
+			outbuf += used_len;
+			*outbuf_len -= used_len;
 			free(name);
 		}
 
 		used_len += snprintf(outbuf, *outbuf_len, "0x%llx",
 				     GptGetEntrySizeBytes(fb->gpt, part));
 		break;
-	}
 	case VAR_PRODUCT: {
 		struct cb_mainboard *mainboard =
 			phys_to_virt(lib_sysinfo.cb_mainboard);
