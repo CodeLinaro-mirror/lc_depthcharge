@@ -32,6 +32,7 @@
 		.name = _name, .has_args = false, .var = _var                  \
 	}
 static fastboot_getvar_info_t fastboot_vars[] = {
+	VAR_NO_ARGS("current-slot", VAR_CURRENT_SLOT),
 	VAR_NO_ARGS("max-download-size", VAR_DOWNLOAD_SIZE),
 	VAR_NO_ARGS("is-userspace", VAR_IS_USERSPACE),
 	VAR_ARGS("partition-size", ':', VAR_PARTITION_SIZE),
@@ -119,8 +120,29 @@ fastboot_getvar_result_t fastboot_getvar(fastboot_var_t var, const char *arg,
 					 size_t arg_len, char *outbuf,
 					 size_t *outbuf_len)
 {
+	struct fastboot_disk disk;
 	size_t used_len = 0;
+	char *suffix;
+	int ret;
+
 	switch (var) {
+	case VAR_CURRENT_SLOT:
+		if (!fastboot_disk_init(&disk))
+			return STATE_DISK_ERROR;
+
+		if (GptNextKernelEntry(disk.gpt) == NULL) {
+			fastboot_disk_destroy(&disk);
+			return STATE_DISK_ERROR;
+		}
+
+		ret = GptGetActiveKernelPartitionSuffix(disk.gpt, &suffix);
+		fastboot_disk_destroy(&disk);
+		if (ret != GPT_SUCCESS)
+			return STATE_DISK_ERROR;
+
+		used_len = snprintf(outbuf, *outbuf_len, "%s", suffix);
+		free(suffix);
+		break;
 	case VAR_DOWNLOAD_SIZE:
 		used_len = snprintf(outbuf, *outbuf_len, "%llu",
 				    FASTBOOT_MAX_DOWNLOAD_SIZE);
@@ -129,7 +151,6 @@ fastboot_getvar_result_t fastboot_getvar(fastboot_var_t var, const char *arg,
 		used_len = snprintf(outbuf, *outbuf_len, "no");
 		break;
 	case VAR_PARTITION_SIZE: {
-		struct fastboot_disk disk;
 		GptEntry *part = NULL;
 
 		if (!fastboot_disk_init(&disk))
@@ -172,7 +193,6 @@ fastboot_getvar_result_t fastboot_getvar(fastboot_var_t var, const char *arg,
 		break;
 	}
 	case VAR_SLOT_COUNT: {
-		struct fastboot_disk disk;
 		if (!fastboot_disk_init(&disk))
 			return STATE_DISK_ERROR;
 		used_len = snprintf(outbuf, *outbuf_len, "%d",
