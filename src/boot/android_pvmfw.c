@@ -60,30 +60,43 @@ struct pvmfw_cfg_rmem_hdr {
 #define GSC_SESSION_KEY_SEED_SIZE 32
 #define GSC_AUTH_TOKEN_SIZE 32
 
-static const char entropy_compat[] = "google,early-entropy";
-static const char session_compat[] = "google,session-key-seed";
-static const char auth_token_compat[] = "google,auth-token-key-seed";
+/* Reserved memory blobs VM DTB compatible strings */
+static const char entropy_compat_str[] = "google,early-entropy";
+static const char session_compat_str[] = "google,session-key-seed";
+static const char auth_token_compat_str[] = "google,auth-token-key-seed";
 
 /* pvmfw's entry 4: Reserved memory blobs with headers */
 struct pvmfw_cfg_rmem {
+	/* The number of reserved blobs in the entry */
 	uint32_t count;
 
 #define PVMFW_CFG_RESERVED_MEM_BLOB_COUNT 3
+	/*
+	 * The headers for each reserved blob in the entry, all store the
+	 * offset and size of blob in the entry.
+	 */
 	struct {
 		struct pvmfw_cfg_rmem_hdr entropy;
 		struct pvmfw_cfg_rmem_hdr session;
 		struct pvmfw_cfg_rmem_hdr auth;
 	} hdrs;
 
+	/*
+	 * The payload of reserved blobs entry. The offsets and sizes of
+	 * the fields are stored in pvmfw_cfg_rmem_hdr headers above in runtime.
+	 */
 	struct reserved_blobs {
 		uint8_t early_entropy[GSC_EARLY_ENTROPY_SIZE];
-		uint8_t entropy_compat[sizeof(entropy_compat)];
-
 		uint8_t session_key_seed[GSC_SESSION_KEY_SEED_SIZE];
-		uint8_t session_compat[sizeof(session_compat)];
-
 		uint8_t auth_token_key_seed[GSC_AUTH_TOKEN_SIZE];
-		uint8_t auth_token_compat[sizeof(auth_token_compat)];
+
+		/*
+		 * It is required that string table is at the end of reserved
+		 * blobs entry.
+		 */
+		uint8_t entropy_compat[sizeof(entropy_compat_str)];
+		uint8_t session_compat[sizeof(session_compat_str)];
+		uint8_t auth_token_compat[sizeof(auth_token_compat_str)];
 	} blobs;
 } __attribute__((packed));
 
@@ -168,7 +181,7 @@ static void copy_reserved_mem(struct pvmfw_boot_params_cbor_v1 *v1,
 
 	/* Copy early entropy received from GSC to reserved memory blobs */
 	memcpy(blobs->early_entropy, v1->boot_params.early_entropy, GSC_EARLY_ENTROPY_SIZE);
-	memcpy(blobs->entropy_compat, entropy_compat, sizeof(entropy_compat));
+	memcpy(blobs->entropy_compat, entropy_compat_str, sizeof(entropy_compat_str));
 
 	/* Setup the reserved memory header for session key seed */
 	reserved->hdrs.session = (struct pvmfw_cfg_rmem_hdr){
@@ -182,7 +195,7 @@ static void copy_reserved_mem(struct pvmfw_boot_params_cbor_v1 *v1,
 	/* Copy session key seed received from GSC to reserved memory blobs */
 	memcpy(blobs->session_key_seed, v1->boot_params.session_key_seed,
 	       GSC_SESSION_KEY_SEED_SIZE);
-	memcpy(blobs->session_compat, session_compat, sizeof(session_compat));
+	memcpy(blobs->session_compat, session_compat_str, sizeof(session_compat_str));
 
 	/* Setup the reserved memory header for auth token key seed */
 	reserved->hdrs.auth = (struct pvmfw_cfg_rmem_hdr){
@@ -196,7 +209,7 @@ static void copy_reserved_mem(struct pvmfw_boot_params_cbor_v1 *v1,
 	/* Copy auth token key seed received from GSC to first reserved memory */
 	memcpy(blobs->auth_token_key_seed, v1->boot_params.auth_token_key_seed,
 	       GSC_AUTH_TOKEN_SIZE);
-	memcpy(blobs->auth_token_compat, auth_token_compat, sizeof(auth_token_compat));
+	memcpy(blobs->auth_token_compat, auth_token_compat_str, sizeof(auth_token_compat_str));
 }
 
 /**
