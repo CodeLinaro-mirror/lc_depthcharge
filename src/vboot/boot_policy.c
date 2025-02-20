@@ -210,6 +210,8 @@ static int fill_info_bootimg(struct boot_info *bi,
 #define ANDROID_BOOT_PART_UUID_KEY_STR "androidboot.boot_part_uuid"
 #define ANDROID_BOOT_A_PART_NUM 13
 #define ANDROID_BOOT_B_PART_NUM 14
+#define ANDROID_VBMETA_A_PART_NUM 15
+#define ANDROID_VBMETA_B_PART_NUM 16
 #define ANDROID_SLOT_SUFFIX_KEY_STR "androidboot.slot_suffix"
 #define ANDROID_FORCE_NORMAL_BOOT_KEY_STR "androidboot.force_normal_boot"
 
@@ -334,9 +336,11 @@ static int modify_android_slot_suffix(VbSelectAndLoadKernelParams *kparams,
 
 	/* Validate partition number according to supported layout at
 	 * al-internal/platform/vendor/google_devices/houdini/+/tm-al:layout/disk_layout.json */
-	if (partition_number == ANDROID_BOOT_A_PART_NUM) {
+	if (partition_number == ANDROID_BOOT_A_PART_NUM ||
+	    partition_number == ANDROID_VBMETA_A_PART_NUM) {
 		str_to_insert = GPT_ENT_NAME_ANDROID_A_SUFFIX;
-	} else if (partition_number == ANDROID_BOOT_B_PART_NUM) {
+	} else if (partition_number == ANDROID_BOOT_B_PART_NUM ||
+		   partition_number == ANDROID_VBMETA_B_PART_NUM) {
 		str_to_insert = GPT_ENT_NAME_ANDROID_B_SUFFIX;
 	} else {
 		 /* Exit early if the partition_number is invalid */
