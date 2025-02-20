@@ -40,7 +40,7 @@ struct pvmfw_config_v1_3 {
 
 /* pvmfw's entry 4: Reserved memory blob header */
 struct pvmfw_cfg_rmem_hdr {
-	uint8_t vm_uuid[16];
+	uint32_t vm_name_offset;
 	uint32_t blob_offset;
 	uint32_t blob_size;
 	uint32_t compat_offset;
@@ -49,17 +49,12 @@ struct pvmfw_cfg_rmem_hdr {
 	uint32_t flags;
 } __attribute__((packed));
 
-/* UUID: 0591f706-535b-4472-b8ea-41535f5b1169 */
-#define DESKTOP_TRUSTY_VM_UUID                                                                 \
-	{                                                                                      \
-		0x05, 0x91, 0xf7, 0x06, 0x53, 0x5b, 0x44, 0x72,                                \
-		0xb8, 0xea, 0x41, 0x53, 0x5f, 0x5b, 0x11, 0x69,                                \
-	}
-
 #define GSC_EARLY_ENTROPY_SIZE 64
 #define GSC_SESSION_KEY_SEED_SIZE 32
 #define GSC_AUTH_TOKEN_SIZE 32
 
+/* The value of com.android.virt.name property in Trusty image's AVB vbmeta */
+static const char desktop_trusty_name[] = "desktop-trusty";
 /* Reserved memory blobs VM DTB compatible strings */
 static const char entropy_compat_str[] = "google,early-entropy";
 static const char session_compat_str[] = "google,session-key-seed";
@@ -94,6 +89,7 @@ struct pvmfw_cfg_rmem {
 		 * It is required that string table is at the end of reserved
 		 * blobs entry.
 		 */
+		uint8_t desktop_trusty_name[sizeof(desktop_trusty_name)];
 		uint8_t entropy_compat[sizeof(entropy_compat_str)];
 		uint8_t session_compat[sizeof(session_compat_str)];
 		uint8_t auth_token_compat[sizeof(auth_token_compat_str)];
@@ -170,9 +166,12 @@ static void copy_reserved_mem(struct pvmfw_boot_params_cbor_v1 *v1,
 	/* Set the count of the reserved memory entiries */
 	reserved->count = PVMFW_CFG_RESERVED_MEM_BLOB_COUNT;
 
+	/* Copy VM name to reserved memory blobs string table */
+	memcpy(blobs->desktop_trusty_name, desktop_trusty_name, sizeof(desktop_trusty_name));
+
 	/* Setup the reserved memory header for early entropy */
 	reserved->hdrs.entropy = (struct pvmfw_cfg_rmem_hdr){
-		.vm_uuid = DESKTOP_TRUSTY_VM_UUID,
+		.vm_name_offset = offsetof(struct reserved_blobs, desktop_trusty_name),
 		.blob_offset = offsetof(struct reserved_blobs, early_entropy),
 		.blob_size = GSC_EARLY_ENTROPY_SIZE,
 		.compat_offset = offsetof(struct reserved_blobs, entropy_compat),
@@ -185,7 +184,7 @@ static void copy_reserved_mem(struct pvmfw_boot_params_cbor_v1 *v1,
 
 	/* Setup the reserved memory header for session key seed */
 	reserved->hdrs.session = (struct pvmfw_cfg_rmem_hdr){
-		.vm_uuid = DESKTOP_TRUSTY_VM_UUID,
+		.vm_name_offset = offsetof(struct reserved_blobs, desktop_trusty_name),
 		.blob_offset = offsetof(struct reserved_blobs, session_key_seed),
 		.blob_size = GSC_SESSION_KEY_SEED_SIZE,
 		.compat_offset = offsetof(struct reserved_blobs, session_compat),
@@ -199,7 +198,7 @@ static void copy_reserved_mem(struct pvmfw_boot_params_cbor_v1 *v1,
 
 	/* Setup the reserved memory header for auth token key seed */
 	reserved->hdrs.auth = (struct pvmfw_cfg_rmem_hdr){
-		.vm_uuid = DESKTOP_TRUSTY_VM_UUID,
+		.vm_name_offset = offsetof(struct reserved_blobs, desktop_trusty_name),
 		.blob_offset = offsetof(struct reserved_blobs, auth_token_key_seed),
 		.blob_size = GSC_AUTH_TOKEN_SIZE,
 		.compat_offset = offsetof(struct reserved_blobs, auth_token_compat),
