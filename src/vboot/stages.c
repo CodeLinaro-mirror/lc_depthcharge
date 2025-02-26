@@ -25,11 +25,13 @@
 #include "base/vpd_util.h"
 #include "boot/commandline.h"
 #include "boot/multiboot.h"
+#include "debug/dev.h"
 #include "drivers/ec/vboot_ec.h"
 #include "drivers/flash/flash.h"
 #include "drivers/power/power.h"
 #include "drivers/storage/blockdev.h"
 #include "drivers/bus/usb/usb.h"
+#include "fastboot/fastboot.h"
 #include "image/fmap.h"
 #include "image/symbols.h"
 #include "vboot/boot.h"
@@ -220,6 +222,24 @@ int vboot_select_and_boot_kernel(void)
 	vboot_check_secdata_corruption(13);
 	if (res != VB2_SUCCESS)
 		goto fail;
+
+	if (kparams.boot_command == VB2_BOOT_CMD_BOOTLOADER_BOOT &&
+	    vboot_in_developer()) {
+		if (CONFIG(FASTBOOT_IN_PROD))
+			fastboot();
+		else
+			dc_dev_fastboot();
+		/*
+		 * Fastboot is usually used to modify data on internal disk.
+		 * Kernel partition priority and its contents are likely
+		 * different. Reboot the device to fully restart the boot
+		 * process. In theory this could be optimized by simply
+		 * re-running this function from beginning, but let's go with
+		 * the safer approach, at least for the time being.
+		 */
+		res = VB2_REQUEST_REBOOT;
+		goto fail;
+	}
 
 	res = vb2api_kernel_finalize(ctx);
 
