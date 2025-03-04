@@ -127,12 +127,10 @@ fastboot_getvar_result_t fastboot_getvar(fastboot_var_t var, const char *arg,
 
 	switch (var) {
 	case VAR_CURRENT_SLOT:
-		uint64_t start_sector, size;
 		if (!fastboot_disk_init(&disk))
 			return STATE_DISK_ERROR;
 
-		ret = GptNextKernelEntry(disk.gpt, &start_sector, &size);
-		if (ret != GPT_SUCCESS) {
+		if (GptNextKernelEntry(disk.gpt) == NULL) {
 			fastboot_disk_destroy(&disk);
 			return STATE_DISK_ERROR;
 		}
