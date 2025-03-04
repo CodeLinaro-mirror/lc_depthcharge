@@ -19,7 +19,6 @@
 #include <assert.h>
 #include <libpayload.h>
 
-#include "arch/post_code.h"
 #include "arch/x86/boot.h"
 #include "arch/x86/cpu.h"
 #include "base/cleanup_funcs.h"
@@ -110,7 +109,7 @@ int boot_x86_linux(struct boot_params *boot_params, char *cmd_line,
 
 	puts("\nStarting kernel ...\n\n");
 	timestamp_add_now(TS_START_KERNEL);
-	post_code(POST_CODE_START_KERNEL);
+	outb(0xab, 0x80);
 
 	/*
 	 * Set %ebx, %ebp, and %edi to 0, %esi to point to the boot_params

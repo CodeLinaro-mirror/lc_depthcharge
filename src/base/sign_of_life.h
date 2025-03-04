@@ -15,19 +15,11 @@
  * GNU General Public License for more details.
  */
 
-#ifndef __ARCH_X86_INCLUDES_ARCH_POST_CODE_H__
-#define __ARCH_X86_INCLUDES_ARCH_POST_CODE_H__
+#ifndef __BASE_SIGN_OF_LIFE_H__
+#define __BASE_SIGN_OF_LIFE_H__
 
-#include <arch/io.h>
+#include <stdint.h>
 
-#include "base/post_code.h"
+static inline void sign_of_life(uint8_t val);
 
-#define DEBUG_PORT 0x80
-
-static inline void post_code(uint16_t val)
-{
-	// Send a post code.
-	outw(val, DEBUG_PORT);
-}
-
-#endif /* __ARCH_X86_INCLUDES_ARCH_POST_CODE_H__ */
+#endif /* __BASE_SIGN_OF_LIFE_H__ */
