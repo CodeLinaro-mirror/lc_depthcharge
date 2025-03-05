@@ -205,22 +205,10 @@ int vboot_select_and_load_kernel(void)
 	list_insert_after(&commit_and_lock_cleanup.list_node,
 			  &cleanup_funcs);
 
-	post_code(POST_CODE_KERNEL_PHASE_1);
-
-	vb2_error_t res = vb2api_kernel_phase1(ctx);
-	if (res != VB2_SUCCESS)
-		goto fail;
-
-	post_code(POST_CODE_KERNEL_PHASE_2);
-
-	res = vb2api_kernel_phase2(ctx);
-	if (res != VB2_SUCCESS)
-		goto fail;
-
 	post_code(POST_CODE_KERNEL_LOAD);
 
 	printf("Calling VbSelectAndLoadKernel().\n");
-	res = VbSelectAndLoadKernel(ctx, &kparams);
+	vb2_error_t res = VbSelectAndLoadKernel(ctx, &kparams);
 	if (res != VB2_SUCCESS)
 		goto fail;
 
