@@ -57,35 +57,35 @@
 	.target = UI_SCREEN_LANGUAGE_SELECT,		\
 })
 
-#define PAGE_UP_ITEM ((struct ui_menu_item){			\
-	.name = "Page up",					\
-	.file = "btn_page_up.bmp",				\
-	.disabled_help_text_file = "page_up_disabled_help.bmp",	\
-	.action = log_page_prev_action,				\
+#define PAGE_UP_ITEM ((struct ui_menu_item){				\
+	.name = "Page up",						\
+	.file = UI_FILE("btn_page_up"),					\
+	.disabled_help_text_file = UI_FILE("page_up_disabled_help"),	\
+	.action = log_page_prev_action,					\
 })
 
 #define PAGE_DOWN_ITEM ((struct ui_menu_item){				\
 	.name = "Page down",						\
-	.file = "btn_page_down.bmp",					\
-	.disabled_help_text_file = "page_down_disabled_help.bmp",	\
+	.file = UI_FILE("btn_page_down"),				\
+	.disabled_help_text_file = UI_FILE("page_down_disabled_help"),	\
 	.action = log_page_next_action,					\
 })
 
 #define BACK_ITEM ((struct ui_menu_item){	\
 	.name = "Back",				\
-	.file = "btn_back.bmp",			\
+	.file = UI_FILE("btn_back"),		\
 	.action = ui_screen_back,		\
 })
 
 #define NEXT_ITEM(target_screen) ((struct ui_menu_item){	\
 	.name = "Next",						\
-	.file = "btn_next.bmp",					\
+	.file = UI_FILE("btn_next"),				\
 	.target = (target_screen),				\
 })
 
 #define ADVANCED_OPTIONS_ITEM ((struct ui_menu_item){	\
 	.name = "Advanced options",			\
-	.file = "btn_adv_options.bmp",			\
+	.file = UI_FILE("btn_adv_options"),		\
 	.type = UI_MENU_ITEM_TYPE_SECONDARY,		\
 	.icon_file = "ic_settings.bmp",			\
 	.target = UI_SCREEN_ADVANCED_OPTIONS,		\
@@ -99,7 +99,7 @@ static vb2_error_t power_off_action(struct ui_context *ui)
 
 #define POWER_OFF_ITEM ((struct ui_menu_item){	\
 	.name = "Power off",			\
-	.file = "btn_power_off.bmp",		\
+	.file = UI_FILE("btn_power_off"),	\
 	.type = UI_MENU_ITEM_TYPE_SECONDARY,	\
 	.icon_file = "ic_power.bmp",		\
 	.flags = UI_MENU_ITEM_FLAG_NO_ARROW,	\
@@ -338,14 +338,14 @@ static vb2_error_t fullview_log_screen_action(struct ui_context *ui)
 /* UI_SCREEN_FIRMWARE_SYNC */
 
 static const char *const firmware_sync_desc[] = {
-	"firmware_sync_desc.bmp",
+	UI_FILE("firmware_sync_desc"),
 };
 
 static const struct ui_screen_info firmware_sync_screen = {
 	.id = UI_SCREEN_FIRMWARE_SYNC,
 	.name = "Firmware sync",
 	.icon = UI_ICON_TYPE_NONE,
-	.title = "firmware_sync_title.bmp",
+	.title = UI_FILE("firmware_sync_title"),
 	.desc = UI_DESC(firmware_sync_desc),
 	.no_footer = 1,
 	.mesg = "Please do not power off your device.\n"
@@ -361,6 +361,10 @@ static vb2_error_t language_select_init(struct ui_context *ui)
 	if (menu->num_items == 0) {
 		UI_ERROR("ERROR: No menu items found; "
 			 "rejecting entering language selection screen\n");
+		return ui_screen_back(ui);
+	}
+	if (CONFIG(UI_LVGL)) {
+		UI_ERROR("ERROR: Language selection screen is still unsupported for LVGL\n");
 		return ui_screen_back(ui);
 	}
 	if (ui->state->locale->id < menu->num_items) {
@@ -440,7 +444,7 @@ static const struct ui_screen_info language_select_screen = {
 /* UI_SCREEN_RECOVERY_BROKEN */
 
 static const char *const broken_desc[] = {
-	"broken_desc.bmp",
+	UI_FILE("broken_desc"),
 };
 
 static const struct ui_menu_item broken_items[] = {
@@ -453,7 +457,7 @@ static const struct ui_screen_info broken_screen = {
 	.id = UI_SCREEN_RECOVERY_BROKEN,
 	.name = "Recover broken device",
 	.icon = UI_ICON_TYPE_INFO,
-	.title = "broken_title.bmp",
+	.title = UI_FILE("broken_title"),
 	.desc = UI_DESC(broken_desc),
 	.menu = UI_MENU(broken_items),
 	.mesg = "Something is wrong. Please remove all connected devices.\n"
@@ -550,27 +554,27 @@ static const struct ui_menu_item advanced_options_items[] = {
 	LANGUAGE_SELECT_ITEM,
 	[ADVANCED_OPTIONS_ITEM_DEVELOPER_MODE] = {
 		.name = "Enable developer mode",
-		.file = "btn_dev_mode.bmp",
+		.file = UI_FILE("btn_dev_mode"),
 		.target = UI_SCREEN_RECOVERY_TO_DEV,
 	},
 	[ADVANCED_OPTIONS_ITEM_DEBUG_INFO] = {
 		.name = "Debug info",
-		.file = "btn_debug_info.bmp",
+		.file = UI_FILE("btn_debug_info"),
 		.target = UI_SCREEN_DEBUG_INFO,
 	},
 	{
 		.name = "Firmware log",
-		.file = "btn_firmware_log.bmp",
+		.file = UI_FILE("btn_firmware_log"),
 		.target = UI_SCREEN_FIRMWARE_LOG,
 	},
 	[ADVANCED_OPTIONS_ITEM_INTERNET_RECOVERY] = {
 		.name = "Internet recovery (older version)",
-		.file = "btn_rec_by_internet_old.bmp",
+		.file = UI_FILE("btn_rec_by_internet_old"),
 		.action = boot_old_minios_action,
 	},
 	[ADVANCED_OPTIONS_ITEM_FIRMWARE_SHELL] = {
 		.name = "Firmware shell",
-		.file = "btn_firmware_shell.bmp",
+		.file = UI_FILE("btn_firmware_shell"),
 		.action = ui_developer_mode_enter_fwshell_action,
 	},
 	BACK_ITEM,
@@ -581,7 +585,7 @@ static const struct ui_screen_info advanced_options_screen = {
 	.id = UI_SCREEN_ADVANCED_OPTIONS,
 	.name = "Advanced options",
 	.icon = UI_ICON_TYPE_NONE,
-	.title = "adv_options_title.bmp",
+	.title = UI_FILE("adv_options_title"),
 	.init = advanced_options_init,
 	.mesg = "Advanced options",
 	.menu = UI_MENU(advanced_options_items),
@@ -678,7 +682,7 @@ static const struct ui_screen_info debug_info_screen = {
 	.id = UI_SCREEN_DEBUG_INFO,
 	.name = "Debug info",
 	.icon = UI_ICON_TYPE_NONE,
-	.title = "debug_info_title.bmp",
+	.title = UI_FILE("debug_info_title"),
 	.init = debug_info_init,
 	.action = fullview_log_screen_action,
 	.draw_desc = ui_draw_log_desc,
@@ -742,7 +746,7 @@ static const struct ui_screen_info firmware_log_screen = {
 	.id = UI_SCREEN_FIRMWARE_LOG,
 	.name = "Firmware log",
 	.icon = UI_ICON_TYPE_NONE,
-	.title = "firmware_log_title.bmp",
+	.title = UI_FILE("firmware_log_title"),
 	.init = firmware_log_init,
 	.action = fullview_log_screen_action,
 	.draw_desc = ui_draw_log_desc,
@@ -758,8 +762,8 @@ static const struct ui_screen_info firmware_log_screen = {
 #define RECOVERY_TO_DEV_ITEM_CANCEL 2
 
 static const char *const recovery_to_dev_desc[] = {
-	"rec_to_dev_desc0.bmp",
-	"rec_to_dev_desc1.bmp",
+	UI_FILE("rec_to_dev_desc0"),
+	UI_FILE("rec_to_dev_desc1"),
 };
 
 static vb2_error_t recovery_to_dev_init(struct ui_context *ui)
@@ -876,11 +880,11 @@ static const struct ui_menu_item recovery_to_dev_items[] = {
 	LANGUAGE_SELECT_ITEM,
 	[RECOVERY_TO_DEV_ITEM_CONFIRM] = {
 		.name = "Confirm",
-		.file = "btn_confirm.bmp",
+		.file = UI_FILE("btn_confirm"),
 	},
 	[RECOVERY_TO_DEV_ITEM_CANCEL] = {
 		.name = "Cancel",
-		.file = "btn_cancel.bmp",
+		.file = UI_FILE("btn_cancel"),
 		.action = ui_screen_back,
 	},
 	POWER_OFF_ITEM,
@@ -890,7 +894,7 @@ static const struct ui_screen_info recovery_to_dev_screen = {
 	.id = UI_SCREEN_RECOVERY_TO_DEV,
 	.name = "Transition to developer mode",
 	.icon = UI_ICON_TYPE_INFO,
-	.title = "rec_to_dev_title.bmp",
+	.title = UI_FILE("rec_to_dev_title"),
 	.desc = UI_DESC(recovery_to_dev_desc),
 	.menu = UI_MENU(recovery_to_dev_items),
 	.init = recovery_to_dev_init,
@@ -934,25 +938,25 @@ vb2_error_t recovery_select_init(struct ui_context *ui)
 }
 
 static const char *const recovery_select_desc[] = {
-	"rec_sel_desc0.bmp",
-	"rec_sel_desc1.bmp",
+	UI_FILE("rec_sel_desc0"),
+	UI_FILE("rec_sel_desc1"),
 };
 
 static const struct ui_menu_item recovery_select_items[] = {
 	LANGUAGE_SELECT_ITEM,
 	[RECOVERY_SELECT_ITEM_EXTERNAL_DISK] = {
 		.name = "Recovery using external disk",
-		.file = "btn_rec_by_disk.bmp",
+		.file = UI_FILE("btn_rec_by_disk"),
 		.target = UI_SCREEN_RECOVERY_DISK_STEP1,
 	},
 	[RECOVERY_SELECT_ITEM_INTERNET] = {
 		.name = "Recovery using internet connection",
-		.file = "btn_rec_by_internet.bmp",
+		.file = UI_FILE("btn_rec_by_internet"),
 		.action = ui_recovery_mode_boot_minios_action,
 	},
 	[RECOVERY_SELECT_ITEM_DIAGNOSTICS] = {
 		.name = "Launch diagnostics",
-		.file = "btn_launch_diag.bmp",
+		.file = UI_FILE("btn_launch_diag"),
 		.type = UI_MENU_ITEM_TYPE_SECONDARY,
 		.icon_file = "ic_search.bmp",
 		.flags = UI_MENU_ITEM_FLAG_NO_ARROW,
@@ -966,7 +970,7 @@ static const struct ui_screen_info recovery_select_screen = {
 	.id = UI_SCREEN_RECOVERY_SELECT,
 	.name = "Recovery method selection",
 	.icon = UI_ICON_TYPE_INFO,
-	.title = "rec_sel_title.bmp",
+	.title = UI_FILE("rec_sel_title"),
 	.desc = UI_DESC(recovery_select_desc),
 	.menu = UI_MENU(recovery_select_items),
 	.init = recovery_select_init,
@@ -983,14 +987,14 @@ static vb2_error_t draw_recovery_disk_step1_desc(
 	int32_t *y)
 {
 	static const char *const desc_files[] = {
-		"rec_disk_step1_desc0.bmp",
-		"rec_disk_step1_desc1.bmp",
-		"rec_step1_desc2.bmp",
+		UI_FILE("rec_disk_step1_desc0"),
+		UI_FILE("rec_disk_step1_desc1"),
+		UI_FILE("rec_step1_desc2"),
 	};
 	static const char *const desc_low_battery_files[] = {
-		"rec_disk_step1_desc0.bmp",
-		"rec_disk_step1_desc1.bmp",
-		"rec_step1_desc2_low_bat.bmp",
+		UI_FILE("rec_disk_step1_desc0"),
+		UI_FILE("rec_disk_step1_desc1"),
+		UI_FILE("rec_step1_desc2_low_bat"),
 	};
 	const struct ui_desc desc = is_battery_low() ?
 		UI_DESC(desc_low_battery_files) : UI_DESC(desc_files);
@@ -1011,7 +1015,7 @@ static const struct ui_screen_info recovery_disk_step1_screen = {
 	.icon = UI_ICON_TYPE_STEP,
 	.step = 1,
 	.num_steps = 3,
-	.title = "rec_step1_title.bmp",
+	.title = UI_FILE("rec_step1_title"),
 	.menu = UI_MENU(recovery_disk_step1_items),
 	.draw_desc = draw_recovery_disk_step1_desc,
 	.mesg = "To proceed with the recovery process, you'll need\n"
@@ -1025,9 +1029,9 @@ static const struct ui_screen_info recovery_disk_step1_screen = {
 /* UI_SCREEN_RECOVERY_DISK_STEP2 */
 
 static const char *const recovery_disk_step2_desc[] = {
-	"rec_disk_step2_desc0.bmp",
-	"rec_disk_step2_desc1.bmp",
-	"rec_disk_step2_desc2.bmp",
+	UI_FILE("rec_disk_step2_desc0"),
+	UI_FILE("rec_disk_step2_desc1"),
+	UI_FILE("rec_disk_step2_desc2"),
 };
 
 static const struct ui_menu_item recovery_disk_step2_items[] = {
@@ -1043,7 +1047,7 @@ static const struct ui_screen_info recovery_disk_step2_screen = {
 	.icon = UI_ICON_TYPE_STEP,
 	.step = 2,
 	.num_steps = 3,
-	.title = "rec_disk_step2_title.bmp",
+	.title = UI_FILE("rec_disk_step2_title"),
 	.desc = UI_DESC(recovery_disk_step2_desc),
 	.menu = UI_MENU(recovery_disk_step2_items),
 	.mesg = "External disk setup.\n"
@@ -1057,7 +1061,7 @@ static const struct ui_screen_info recovery_disk_step2_screen = {
 /* UI_SCREEN_RECOVERY_DISK_STEP3 */
 
 static const char *const recovery_disk_step3_desc[] = {
-	"rec_disk_step3_desc0.bmp",
+	UI_FILE("rec_disk_step3_desc0"),
 };
 
 static const struct ui_menu_item recovery_disk_step3_items[] = {
@@ -1072,7 +1076,7 @@ static const struct ui_screen_info recovery_disk_step3_screen = {
 	.icon = UI_ICON_TYPE_STEP,
 	.step = 3,
 	.num_steps = 3,
-	.title = "rec_disk_step3_title.bmp",
+	.title = UI_FILE("rec_disk_step3_title"),
 	.desc = UI_DESC(recovery_disk_step3_desc),
 	.menu = UI_MENU(recovery_disk_step3_items),
 	.mesg = "Do you have your external disk ready?\n"
@@ -1084,7 +1088,7 @@ static const struct ui_screen_info recovery_disk_step3_screen = {
 /* UI_SCREEN_RECOVERY_INVALID */
 
 static const char *const recovery_invalid_desc[] = {
-	"rec_invalid_desc.bmp",
+	UI_FILE("rec_invalid_desc"),
 };
 
 static const struct ui_menu_item recovery_invalid_items[] = {
@@ -1098,7 +1102,7 @@ static const struct ui_screen_info recovery_invalid_screen = {
 	.icon = UI_ICON_TYPE_STEP,
 	.step = -3,
 	.num_steps = 3,
-	.title = "rec_invalid_title.bmp",
+	.title = UI_FILE("rec_invalid_title"),
 	.desc = UI_DESC(recovery_invalid_desc),
 	.menu = UI_MENU(recovery_invalid_items),
 	.mesg = "No valid image detected.\n"
@@ -1243,22 +1247,22 @@ static const struct ui_menu_item developer_mode_items[] = {
 	LANGUAGE_SELECT_ITEM,
 	[DEVELOPER_MODE_ITEM_RETURN_TO_SECURE] = {
 		.name = "Return to secure mode",
-		.file = "btn_secure_mode.bmp",
+		.file = UI_FILE("btn_secure_mode"),
 		.target = UI_SCREEN_DEVELOPER_TO_NORM,
 	},
 	[DEVELOPER_MODE_ITEM_BOOT_INTERNAL] = {
 		.name = "Boot from internal disk",
-		.file = "btn_int_disk.bmp",
+		.file = UI_FILE("btn_int_disk"),
 		.action = ui_developer_mode_boot_internal_action,
 	},
 	[DEVELOPER_MODE_ITEM_BOOT_EXTERNAL] = {
 		.name = "Boot from external disk",
-		.file = "btn_ext_disk.bmp",
+		.file = UI_FILE("btn_ext_disk"),
 		.action = ui_developer_mode_boot_external_action,
 	},
 	[DEVELOPER_MODE_ITEM_SELECT_ALTFW] = {
 		.name = "Select alternate bootloader",
-		.file = "btn_alt_bootloader.bmp",
+		.file = UI_FILE("btn_alt_bootloader"),
 		.target = UI_SCREEN_DEVELOPER_SELECT_ALTFW,
 	},
 	ADVANCED_OPTIONS_ITEM,
@@ -1269,7 +1273,7 @@ static const struct ui_screen_info developer_mode_screen = {
 	.id = UI_SCREEN_DEVELOPER_MODE,
 	.name = "Developer mode",
 	.icon = UI_ICON_TYPE_DEV_MODE,
-	.title = "dev_title.bmp",
+	.title = UI_FILE("dev_title"),
 	.menu = UI_MENU(developer_mode_items),
 	.init = developer_mode_init,
 	.action = developer_mode_action,
@@ -1314,20 +1318,20 @@ vb2_error_t developer_to_norm_action(struct ui_context *ui)
 }
 
 static const char *const developer_to_norm_desc[] = {
-	"dev_to_norm_desc0.bmp",
-	"dev_to_norm_desc1.bmp",
+	UI_FILE("dev_to_norm_desc0"),
+	UI_FILE("dev_to_norm_desc1"),
 };
 
 static const struct ui_menu_item developer_to_norm_items[] = {
 	LANGUAGE_SELECT_ITEM,
 	[DEVELOPER_TO_NORM_ITEM_CONFIRM] = {
 		.name = "Confirm",
-		.file = "btn_confirm.bmp",
+		.file = UI_FILE("btn_confirm"),
 		.action = developer_to_norm_action,
 	},
 	[DEVELOPER_TO_NORM_ITEM_CANCEL] = {
 		.name = "Cancel",
-		.file = "btn_cancel.bmp",
+		.file = UI_FILE("btn_cancel"),
 		.action = ui_screen_back,
 	},
 	POWER_OFF_ITEM,
@@ -1337,7 +1341,7 @@ static const struct ui_screen_info developer_to_norm_screen = {
 	.id = UI_SCREEN_DEVELOPER_TO_NORM,
 	.name = "Transition to normal mode",
 	.icon = UI_ICON_TYPE_RESTART,
-	.title = "dev_to_norm_title.bmp",
+	.title = UI_FILE("dev_to_norm_title"),
 	.desc = UI_DESC(developer_to_norm_desc),
 	.menu = UI_MENU(developer_to_norm_items),
 	.init = developer_to_norm_init,
@@ -1353,7 +1357,7 @@ static const struct ui_screen_info developer_to_norm_screen = {
 #define DEVELOPER_BOOT_EXTERNAL_ITEM_BACK 1
 
 static const char *const developer_boot_external_desc[] = {
-	"dev_boot_ext_desc0.bmp",
+	UI_FILE("dev_boot_ext_desc0"),
 };
 
 static const struct ui_menu_item developer_boot_external_items[] = {
@@ -1393,7 +1397,7 @@ static const struct ui_screen_info developer_boot_external_screen = {
 	.id = UI_SCREEN_DEVELOPER_BOOT_EXTERNAL,
 	.name = "Developer boot from external disk",
 	.icon = UI_ICON_TYPE_NONE,
-	.title = "dev_boot_ext_title.bmp",
+	.title = UI_FILE("dev_boot_ext_title"),
 	.desc = UI_DESC(developer_boot_external_desc),
 	.menu = UI_MENU(developer_boot_external_items),
 	.init = developer_boot_external_init,
@@ -1410,7 +1414,7 @@ static const struct ui_screen_info developer_boot_external_screen = {
 #define DEVELOPER_INVALID_DISK_ITEM_BACK 1
 
 static const char *const developer_invalid_disk_desc[] = {
-	"dev_invalid_disk_desc0.bmp",
+	UI_FILE("dev_invalid_disk_desc0"),
 };
 
 static const struct ui_menu_item developer_invalid_disk_items[] = {
@@ -1437,7 +1441,7 @@ static const struct ui_screen_info developer_invalid_disk_screen = {
 	.id = UI_SCREEN_DEVELOPER_INVALID_DISK,
 	.name = "Invalid external disk in dev mode",
 	.icon = UI_ICON_TYPE_ERROR,
-	.title = "dev_invalid_disk_title.bmp",
+	.title = UI_FILE("dev_invalid_disk_title"),
 	.desc = UI_DESC(developer_invalid_disk_desc),
 	.menu = UI_MENU(developer_invalid_disk_items),
 	.init = developer_invalid_disk_init,
@@ -1619,7 +1623,7 @@ static const struct ui_screen_info developer_select_bootloader_screen = {
 	.id = UI_SCREEN_DEVELOPER_SELECT_ALTFW,
 	.name = "Select alternate bootloader",
 	.icon = UI_ICON_TYPE_NONE,
-	.title = "dev_select_bootloader_title.bmp",
+	.title = UI_FILE("dev_select_bootloader_title"),
 	.init = developer_select_bootloader_init,
 	.mesg = "Select an alternate bootloader.",
 	.get_menu = get_bootloader_menu,
@@ -1686,34 +1690,34 @@ static vb2_error_t diagnostics_action(struct ui_context *ui)
 }
 
 static const char *const diagnostics_desc[] = {
-	"diag_menu_desc0.bmp",
+	UI_FILE("diag_menu_desc0"),
 };
 
 static const struct ui_menu_item diagnostics_items[] = {
 	LANGUAGE_SELECT_ITEM,
 	[DIAGNOSTICS_ITEM_STORAGE_HEALTH] = {
 		.name = "Storage health info",
-		.file = "btn_diag_storage_health.bmp",
+		.file = UI_FILE("btn_diag_storage_health"),
 		.target = UI_SCREEN_DIAGNOSTICS_STORAGE_HEALTH,
 	},
 	[DIAGNOSTICS_ITEM_STORAGE_TEST_SHORT] = {
 		.name = "Storage self-test (short)",
-		.file = "btn_diag_storage_short_test.bmp",
+		.file = UI_FILE("btn_diag_storage_short_test"),
 		.target = UI_SCREEN_DIAGNOSTICS_STORAGE_TEST_SHORT,
 	},
 	[DIAGNOSTICS_ITEM_STORAGE_TEST_EXTENDED] = {
 		.name = "Storage self-test (extended)",
-		.file = "btn_diag_storage_ext_test.bmp",
+		.file = UI_FILE("btn_diag_storage_ext_test"),
 		.target = UI_SCREEN_DIAGNOSTICS_STORAGE_TEST_EXTENDED,
 	},
 	{
 		.name = "Memory check (quick)",
-		.file = "btn_diag_memory_quick.bmp",
+		.file = UI_FILE("btn_diag_memory_quick"),
 		.target = UI_SCREEN_DIAGNOSTICS_MEMORY_QUICK,
 	},
 	{
 		.name = "Memory check (full)",
-		.file = "btn_diag_memory_full.bmp",
+		.file = UI_FILE("btn_diag_memory_full"),
 		.target = UI_SCREEN_DIAGNOSTICS_MEMORY_FULL,
 	},
 	POWER_OFF_ITEM,
@@ -1723,7 +1727,7 @@ static const struct ui_screen_info diagnostics_screen = {
 	.id = UI_SCREEN_DIAGNOSTICS,
 	.name = "Diagnostic tools",
 	.icon = UI_ICON_TYPE_INFO,
-	.title = "diag_menu_title.bmp",
+	.title = UI_FILE("diag_menu_title"),
 	.desc = UI_DESC(diagnostics_desc),
 	.menu = UI_MENU(diagnostics_items),
 	.init = diagnostics_init,
@@ -1787,7 +1791,7 @@ static const struct ui_screen_info diagnostics_storage_health_screen = {
 	.id = UI_SCREEN_DIAGNOSTICS_STORAGE_HEALTH,
 	.name = "Storage health info",
 	.icon = UI_ICON_TYPE_NONE,
-	.title = "diag_storage_health_title.bmp",
+	.title = UI_FILE("diag_storage_health_title"),
 	.init = diagnostics_storage_health_init,
 	.exit = diagnostics_test_exit,
 	.action = fullview_log_screen_action,
@@ -1899,8 +1903,8 @@ static vb2_error_t diagnostics_storage_test_cancel(struct ui_context *ui)
 	return ui_screen_back(ui);
 }
 
-#define DIAGNOSTICS_TEST_BACK_FILE	"btn_back.bmp"
-#define DIAGNOSTICS_TEST_CANCEL_FILE	"btn_cancel.bmp"
+#define DIAGNOSTICS_TEST_BACK_FILE	UI_FILE("btn_back")
+#define DIAGNOSTICS_TEST_CANCEL_FILE	UI_FILE("btn_cancel")
 
 static const char *diagnostics_test_back_get_file(const struct ui_state *state)
 {
@@ -1927,7 +1931,7 @@ static const struct ui_screen_info diagnostics_storage_test_short_screen = {
 	.id = UI_SCREEN_DIAGNOSTICS_STORAGE_TEST_SHORT,
 	.name = "Storage self-test (short)",
 	.icon = UI_ICON_TYPE_NONE,
-	.title = "diag_storage_srt_test_title.bmp",
+	.title = UI_FILE("diag_storage_srt_test_title"),
 	.menu = UI_MENU(diagnostics_storage_test_items),
 	.init = diagnostics_storage_test_short_init,
 	.exit = diagnostics_test_exit,
@@ -1943,7 +1947,7 @@ static const struct ui_screen_info diagnostics_storage_test_extended_screen = {
 	.id = UI_SCREEN_DIAGNOSTICS_STORAGE_TEST_EXTENDED,
 	.name = "Storage self-test (extended)",
 	.icon = UI_ICON_TYPE_NONE,
-	.title = "diag_storage_ext_test_title.bmp",
+	.title = UI_FILE("diag_storage_ext_test_title"),
 	.menu = UI_MENU(diagnostics_storage_test_items),
 	.init = diagnostics_storage_test_extended_init,
 	.exit = diagnostics_test_exit,
@@ -2056,7 +2060,7 @@ static const struct ui_screen_info diagnostics_memory_quick_screen = {
 	.id = UI_SCREEN_DIAGNOSTICS_MEMORY_QUICK,
 	.name = "Memory check (quick)",
 	.icon = UI_ICON_TYPE_NONE,
-	.title = "diag_memory_quick_title.bmp",
+	.title = UI_FILE("diag_memory_quick_title"),
 	.menu = UI_MENU(diagnostics_memory_items),
 	.init = diagnostics_memory_init_quick,
 	.exit = diagnostics_test_exit,
@@ -2072,7 +2076,7 @@ static const struct ui_screen_info diagnostics_memory_full_screen = {
 	.id = UI_SCREEN_DIAGNOSTICS_MEMORY_FULL,
 	.name = "Memory check (full)",
 	.icon = UI_ICON_TYPE_NONE,
-	.title = "diag_memory_full_title.bmp",
+	.title = UI_FILE("diag_memory_full_title"),
 	.menu = UI_MENU(diagnostics_memory_items),
 	.init = diagnostics_memory_init_full,
 	.exit = diagnostics_test_exit,

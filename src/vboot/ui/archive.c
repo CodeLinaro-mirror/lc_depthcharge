@@ -49,7 +49,7 @@ static const struct locale_data *get_locale_data(void)
 	       cached_locales.count < ARRAY_SIZE(cached_locales.locales)) {
 		/* Each line is of format "code,right-to-left" */
 		char *line;
-		const char *code, *rtl;
+		const char *code, *rtl, *font_name;
 		struct ui_locale *info;
 		line = strsep(&loc, "\n");
 		if (!line || !strlen(line))
@@ -68,6 +68,11 @@ static const struct locale_data *get_locale_data(void)
 			UI_WARN("Unable to parse rtl from line: %s\n", line);
 			continue;
 		}
+		font_name = strsep(&line, ",");
+		if (!font_name || !strlen(font_name)) {
+			UI_WARN("Unable to parse font name from line: %s\n", line);
+			continue;
+		}
 		printf(" %s", code);
 		info = &cached_locales.locales[cached_locales.count];
 		info->id = cached_locales.count;
@@ -78,6 +83,7 @@ static const struct locale_data *get_locale_data(void)
 		} else {
 			info->rtl = 0;
 		}
+		info->font_name = font_name;
 		cached_locales.count++;
 	}
 
@@ -311,4 +317,39 @@ vb2_error_t ui_load_asset(enum ui_archive_type type, const char *file,
 		UI_WARN("Unknown archive type %d\n", type);
 		return VB2_ERROR_UI_INVALID_ARCHIVE;
 	}
+}
+
+vb2_error_t ui_load_font(const char *font_name, struct ui_asset *asset)
+{
+	static int cache_initialized = 0;
+	static struct ui_asset font_asset_cache;
+	char file_name[UI_CBFS_FILENAME_MAX_LEN + 1];
+	size_t size;
+	void *font_raw;
+
+	if (cache_initialized &&
+	    !strncmp(font_name, font_asset_cache.name, sizeof(font_asset_cache.name))) {
+		*asset = font_asset_cache;
+		return VB2_SUCCESS;
+	}
+
+	if (cache_initialized)
+		cbfs_unmap((void *)font_asset_cache.data);
+
+	/* Load font from CBFS */
+	snprintf(file_name, sizeof(file_name), "font_%s.bin", font_name);
+	font_raw = cbfs_ro_map(file_name, &size);
+	if (!font_raw || !size) {
+		UI_ERROR("Failed to load %s (font_raw: %p, size: %zu)\n",
+			 file_name, font_raw, size);
+		return VB2_ERROR_UI_INVALID_ARCHIVE;
+	}
+	font_asset_cache.name[UI_ASSET_FILENAME_MAX_LEN] = '\0';
+	strncpy(font_asset_cache.name, font_name, UI_ASSET_FILENAME_MAX_LEN);
+	font_asset_cache.data = font_raw;
+	font_asset_cache.size = size;
+
+	cache_initialized = 1;
+	*asset = font_asset_cache;
+	return VB2_SUCCESS;
 }

@@ -5,6 +5,7 @@
 
 #include "drivers/video/display.h"
 #include "vboot/ui.h"
+#include "vboot/ui_lvgl.h"
 
 static vb2_error_t ui_error_exit_action(struct ui_context *ui)
 {
@@ -194,6 +195,10 @@ static vb2_error_t ui_loop_impl(
 			/* Update prev variables. */
 			memcpy(&prev_state, ui->state, sizeof(*ui->state));
 		}
+
+		/* For LVGL, the actual screen rendering happens here. */
+		if (CONFIG(UI_LVGL))
+			ui_lvgl_call_timer_handler();
 
 		/* Grab new keyboard input. */
 		ui->key = ui_keyboard_read(&key_flags);

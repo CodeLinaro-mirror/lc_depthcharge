@@ -23,6 +23,7 @@
 #include "drivers/ec/cros/ec.h"
 #include "drivers/video/display.h"
 #include "vboot/ui.h"
+#include "vboot/ui_lvgl.h"
 
 #define DEV_URL "google.com/chromeos/devmode"
 
@@ -105,8 +106,10 @@ static vb2_error_t init_screen(void)
 	clear_screen(&ui_color_black);
 	if (display_init())
 		return VB2_ERROR_UI_DISPLAY_INIT;
-
-	enable_graphics_buffer();
+	if (CONFIG(UI_LVGL))
+		VB2_TRY(ui_lvgl_init_display());
+	else
+		enable_graphics_buffer();
 	backlight_update(true);
 
 	initialized = 1;
@@ -160,7 +163,7 @@ vb2_error_t ui_display(struct ui_context *ui,
 	 * dialog, we need to dim the background colors so it's not so
 	 * distracting.
 	 */
-	if (error)
+	if (error && !CONFIG(UI_LVGL))
 		set_blend(&ui_color_black, ALPHA(60));
 
 	if (screen->draw)
@@ -177,7 +180,7 @@ vb2_error_t ui_display(struct ui_context *ui,
 		ui_draw_fallback_stripes(screen->id, state->focused_item);
 	}
 	/* Disable screen dimming. */
-	if (error)
+	if (error && !CONFIG(UI_LVGL))
 		clear_blend();
 	/*
 	 * If there's an error message to be printed, print it out.
@@ -191,7 +194,8 @@ vb2_error_t ui_display(struct ui_context *ui,
 			UI_WARN("%s\n", error->mesg);
 	}
 
-	flush_graphics_buffer();
+	if (!CONFIG(UI_LVGL))
+		flush_graphics_buffer();
 
 	/*
 	 * Tell the EC about our state...ignore errors since some ECs won't
@@ -205,6 +209,9 @@ vb2_error_t ui_display(struct ui_context *ui,
 
 int ui_display_clear(void)
 {
-	disable_graphics_buffer();
+	if (CONFIG(UI_LVGL))
+		ui_lvgl_cleanup();
+	else
+		disable_graphics_buffer();
 	return clear_screen(&ui_color_black);
 }

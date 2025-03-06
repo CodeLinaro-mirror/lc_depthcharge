@@ -42,3 +42,24 @@ vb2_error_t ui_get_language_name_asset(const char *locale_code,
 	snprintf(file, sizeof(file), pattern, locale_code, ext);
 	return ui_get_asset(file, NULL, 0, asset);
 }
+
+vb2_error_t ui_get_language_name(const char *locale_code,
+				 const char **language_name)
+{
+	*language_name = NULL;
+	struct ui_asset text_asset;
+	VB2_TRY(ui_get_language_name_asset(locale_code, "txt", &text_asset));
+	*language_name = text_asset.data;
+	return VB2_SUCCESS;
+}
+
+vb2_error_t ui_get_text(const char *file_name,
+			const char *locale_code,
+			const char **text)
+{
+	*text = NULL;
+	struct ui_asset text_asset;
+	VB2_TRY(ui_get_asset(file_name, locale_code, 0, &text_asset));
+	*text = text_asset.data;
+	return VB2_SUCCESS;
+}

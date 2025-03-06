@@ -11,7 +11,11 @@
 ## GNU General Public License for more details.
 ##
 
+ifeq ($(CONFIG_UI_LVGL),y)
+subdirs-y += lvgl
+else
 subdirs-y += lp_graphics
+endif
 
 depthcharge-y += archive.c
 depthcharge-y += asset.c

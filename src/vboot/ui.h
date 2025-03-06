@@ -45,6 +45,9 @@
 #define UI_CLR_BIT(mask, index) ((mask) &= ~BIT(index))
 #define UI_GET_BIT(mask, index) ((mask) & BIT(index))
 
+/* Helper for asset files */
+#define UI_FILE(name) (CONFIG(UI_LVGL) ? (name ".txt") : (name ".bmp"))
+
 /* Maximum lengths */
 #define UI_LOCALE_CODE_MAX_LEN 8
 #define UI_CBFS_FILENAME_MAX_LEN 256
@@ -207,8 +210,8 @@
 #define UI_KEY_DEV_FASTBOOT		UI_KEY_CTRL('F')
 
 /* For diagnostic test screens */
-#define UI_DIAGNOSTICS_TEST_BACK_FILE	"btn_back.bmp"
-#define UI_DIAGNOSTICS_TEST_CANCEL_FILE	"btn_cancel.bmp"
+#define UI_DIAGNOSTICS_TEST_BACK_FILE	UI_FILE("btn_back")
+#define UI_DIAGNOSTICS_TEST_CANCEL_FILE	UI_FILE("btn_cancel")
 
 /*
  * Screens
@@ -742,6 +745,16 @@ enum ui_archive_type {
 vb2_error_t ui_load_asset(enum ui_archive_type type, const char *file,
 			  const char *locale_code, struct ui_asset *asset);
 
+/*
+ * Load font from CBFS.
+ *
+ * @param font_name	Font name.
+ * @param asset		Asset struct to be filled.
+ *
+ * @return VB2_SUCCESS on success, non-zero on error.
+ */
+vb2_error_t ui_load_font(const char *font_name, struct ui_asset *asset);
+
 /******************************************************************************/
 /* asset.c */
 
@@ -771,6 +784,38 @@ vb2_error_t ui_get_asset(const char *name, const char *locale_code,
 vb2_error_t ui_get_language_name_asset(const char *locale_code,
 				       const char *ext,
 				       struct ui_asset *asset);
+
+/*
+ * Get language name string.
+ *
+ * Assumes language name stored in CBFS is already null-terminated.
+ *
+ * @param locale_code	Language code of locale.
+ * @param language_name	String to be filled with a null-terminated
+ *			text of language name.
+ *
+ * @return VB2_SUCCESS on success, non-zero on error.
+ */
+vb2_error_t ui_get_language_name(const char *locale_code,
+				 const char **language_name);
+
+/*
+ * Get localized text string from archived file.
+ *
+ * Assumes text in CBFS file is already null-terminated.
+ *
+ * @param text_name	Text file name.
+ * @param locale_code	Language code of locale.
+ *			If NULL, assumes file is stored in
+ *			generic archive (vbgfx.bin).
+ * @param text		String to be filled with a
+ *			null-terminated text from file.
+ *
+ * @return VB2_SUCCESS on success, non-zero on error.
+ */
+vb2_error_t ui_get_text(const char *file_name,
+			const char *locale_code,
+			const char **text);
 
 /******************************************************************************/
 /* bitmap.c */

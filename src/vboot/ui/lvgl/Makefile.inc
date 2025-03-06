@@ -9,6 +9,11 @@ LVGL_LIB = $(obj)/lvgl.a
 
 lvgl-objs += $(LVGL_LIB)
 
+depthcharge-y += components.c
+depthcharge-y += display.c
+depthcharge-y += font.c
+depthcharge-y += layout.c
+
 # Set lv_conf.h directory
 CFLAGS += -DLV_CONF_PATH="$(LVGL_CONFIG_H)"
 
