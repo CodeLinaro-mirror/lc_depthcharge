@@ -46,3 +46,10 @@ uint32_t secdata_extend_kernel_pcr(struct vb2_context *ctx)
 {
 	return TPM_SUCCESS;
 }
+
+uint32_t secdata_get_pvmfw_params(void **boot_params, size_t *params_size)
+{
+	*params_size = 0;
+	*boot_params = NULL;
+	return TPM_SUCCESS;
+}
