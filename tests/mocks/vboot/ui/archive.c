@@ -19,8 +19,8 @@ uint32_t ui_get_locale_count(void)
 	return mock_type(uint32_t);
 }
 
-vb2_error_t ui_load_bitmap(enum ui_archive_type type, const char *file,
-			   const char *locale_code, struct ui_bitmap *bitmap)
+vb2_error_t ui_load_asset(enum ui_archive_type type, const char *file,
+			  const char *locale_code, struct ui_asset *asset)
 {
 	return mock_type(vb2_error_t);
 }

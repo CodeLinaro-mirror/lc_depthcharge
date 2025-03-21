@@ -26,7 +26,7 @@ uint32_t ui_get_locale_count(void)
 	return 50;
 }
 
-static vb2_error_t load_bitmap(const char *path, struct ui_bitmap *bitmap)
+static vb2_error_t load_bitmap(const char *path, struct ui_asset *bitmap)
 {
 	size_t read_size;
 	unsigned char *buffer;
@@ -51,27 +51,27 @@ static vb2_error_t load_bitmap(const char *path, struct ui_bitmap *bitmap)
 	return VB2_SUCCESS;
 }
 
-vb2_error_t ui_load_bitmap(enum ui_archive_type type, const char *file,
-			   const char *locale_code, struct ui_bitmap *bitmap)
+vb2_error_t ui_load_asset(enum ui_archive_type type, const char *file,
+			  const char *locale_code, struct ui_asset *asset)
 {
 	char path[PATH_MAX_LEN + 1];
 
-	bitmap->name[UI_BITMAP_FILENAME_MAX_LEN] = '\0';
-	strncpy(bitmap->name, file, UI_BITMAP_FILENAME_MAX_LEN);
+	asset->name[UI_ASSET_FILENAME_MAX_LEN] = '\0';
+	strncpy(asset->name, file, UI_ASSET_FILENAME_MAX_LEN);
 
 	switch (type) {
 	case UI_ARCHIVE_GENERIC:
 		snprintf(path, sizeof(path), "%s/%s",
 			 __BMP_PATH__, file);
-		return load_bitmap(path, bitmap);
+		return load_bitmap(path, asset);
 	case UI_ARCHIVE_LOCALIZED:
 		snprintf(path, sizeof(path), "%s/locale/ro/%s/%s",
 			 __BMP_PATH__, locale_code, file);
-		return load_bitmap(path, bitmap);
+		return load_bitmap(path, asset);
 	case UI_ARCHIVE_FONT:
 		snprintf(path, sizeof(path), "%s/glyph/%s",
 			 __BMP_PATH__, file);
-		return load_bitmap(path, bitmap);
+		return load_bitmap(path, asset);
 	default:
 		return VB2_ERROR_UI_INVALID_ARCHIVE;
 	}

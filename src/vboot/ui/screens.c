@@ -424,7 +424,7 @@ static vb2_error_t draw_language_select_menu(struct ui_context *ui,
 	int focused;
 	const struct ui_locale *locale;
 	const struct rgb_color *bg_color, *fg_color;
-	struct ui_bitmap bitmap;
+	struct ui_asset bitmap;
 
 	num_lang = ui_get_locale_count();
 	if (num_lang == 0) {
@@ -1396,7 +1396,7 @@ static vb2_error_t draw_developer_mode_desc(
 	const struct ui_state *prev_state,
 	int32_t *y)
 {
-	struct ui_bitmap bitmap;
+	struct ui_asset bitmap;
 	const struct ui_state *state = ui->state;
 	const char *locale_code = state->locale->code;
 	const int reverse = state->locale->rtl;
@@ -1413,8 +1413,7 @@ static vb2_error_t draw_developer_mode_desc(
 	 */
 	if (!(vb2api_gbb_get_flags(ui->ctx) &
 	      VB2_GBB_FLAG_FORCE_DEV_SWITCH_ON)) {
-		VB2_TRY(ui_get_bitmap("dev_desc0.bmp", locale_code, 0,
-				      &bitmap));
+		VB2_TRY(ui_get_asset("dev_desc0.bmp", locale_code, 0, &bitmap));
 		h = UI_DESC_TEXT_HEIGHT * ui_get_bitmap_num_lines(&bitmap);
 		VB2_TRY(ui_draw_bitmap(&bitmap, x, *y, w, h, flags, reverse));
 		*y += h + UI_DESC_TEXT_LINE_SPACING;
@@ -1425,8 +1424,7 @@ static vb2_error_t draw_developer_mode_desc(
 	 * After the timer in developer mode is disabled, this description no
 	 * longer makes sense, so hide it.
 	 */
-	VB2_TRY(ui_get_bitmap("dev_desc1.bmp", locale_code, 0,
-			      &bitmap));
+	VB2_TRY(ui_get_asset("dev_desc1.bmp", locale_code, 0, &bitmap));
 	h = UI_DESC_TEXT_HEIGHT * ui_get_bitmap_num_lines(&bitmap);
 	/* Either clear the desc line, or draw it again. */
 	if (state->timer_disabled)
@@ -2121,10 +2119,10 @@ static vb2_error_t diagnostics_test_back_get_width(const struct ui_state *state,
 
 	*width = 0;
 	for (int i = 0; i < ARRAY_SIZE(files); i++) {
-		struct ui_bitmap bitmap;
+		struct ui_asset bitmap;
 		int32_t button_width;
-		VB2_TRY(ui_get_bitmap(files[i], state->locale->code, 0,
-				      &bitmap));
+		VB2_TRY(ui_get_asset(files[i], state->locale->code, 0,
+				     &bitmap));
 		VB2_TRY(ui_get_bitmap_width(&bitmap, UI_BUTTON_TEXT_HEIGHT,
 					    &button_width));
 		*width = MAX(*width, button_width);

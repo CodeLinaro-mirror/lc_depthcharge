@@ -151,8 +151,8 @@ static vb2_error_t show_error_box(const struct ui_error_message *error,
 	y += UI_ERROR_BOX_PADDING;
 
 	/* Insert icon */
-	struct ui_bitmap bitmap;
-	VB2_TRY(ui_get_bitmap("ic_info.bmp", NULL, 0, &bitmap));
+	struct ui_asset bitmap;
+	VB2_TRY(ui_get_asset("ic_info.bmp", NULL, 0, &bitmap));
 	VB2_TRY(ui_draw_bitmap(&bitmap, x, y,
 			       UI_ERROR_BOX_ICON_HEIGHT,
 			       UI_ERROR_BOX_ICON_HEIGHT,
@@ -160,13 +160,13 @@ static vb2_error_t show_error_box(const struct ui_error_message *error,
 
 	/* Insert in the body */
 	y += UI_ERROR_BOX_SECTION_SPACING + UI_ERROR_BOX_ICON_HEIGHT;
-	VB2_TRY(ui_get_bitmap(error->file, locale_code, 0, &bitmap));
+	VB2_TRY(ui_get_asset(error->file, locale_code, 0, &bitmap));
 	h = UI_ERROR_BOX_TEXT_HEIGHT * ui_get_bitmap_num_lines(&bitmap);
 	VB2_TRY(ui_draw_bitmap(&bitmap, x, y, w, h, flags, reverse));
 	y += h;
 	if (error->show_dev_url) {
 		y += UI_ERROR_BOX_TEXT_LINE_SPACING;
-		VB2_TRY(ui_get_bitmap("dev_mode_url.bmp", NULL, 0, &bitmap));
+		VB2_TRY(ui_get_asset("dev_mode_url.bmp", NULL, 0, &bitmap));
 		h = UI_ERROR_BOX_TEXT_HEIGHT * ui_get_bitmap_num_lines(&bitmap);
 		VB2_TRY(ui_draw_bitmap(&bitmap, x, y, w, h, flags, reverse));
 		y += h;
@@ -176,7 +176,7 @@ static vb2_error_t show_error_box(const struct ui_error_message *error,
 	const struct ui_menu_item back_item = {
 		.file = "btn_back.bmp",
 	};
-	VB2_TRY(ui_get_bitmap(back_item.file, locale_code, 0, &bitmap));
+	VB2_TRY(ui_get_asset(back_item.file, locale_code, 0, &bitmap));
 	int32_t text_width;
 	VB2_TRY(ui_get_bitmap_width(&bitmap, UI_BUTTON_TEXT_HEIGHT,
 				    &text_width));

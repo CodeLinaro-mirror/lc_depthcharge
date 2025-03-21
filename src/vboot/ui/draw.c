@@ -51,7 +51,7 @@ static uint32_t reverse_pivot(uint32_t pivot) {
 	return pivot;
 }
 
-vb2_error_t ui_draw_bitmap(const struct ui_bitmap *bitmap,
+vb2_error_t ui_draw_bitmap(const struct ui_asset *bitmap,
 			   int32_t x, int32_t y, int32_t width, int32_t height,
 			   uint32_t flags, int reverse)
 {
@@ -98,7 +98,7 @@ vb2_error_t ui_draw_bitmap(const struct ui_bitmap *bitmap,
 	return VB2_SUCCESS;
 }
 
-vb2_error_t ui_draw_mapped_bitmap(const struct ui_bitmap *bitmap,
+vb2_error_t ui_draw_mapped_bitmap(const struct ui_asset *bitmap,
 				  int32_t x, int32_t y,
 				  int32_t width, int32_t height,
 				  const struct rgb_color *bg_color,
@@ -126,7 +126,7 @@ vb2_error_t ui_draw_mapped_bitmap(const struct ui_bitmap *bitmap,
  *
  * @return VB2_SUCCESS on success, non-zero on error.
  */
-static vb2_error_t ui_get_bitmap_size(const struct ui_bitmap *bitmap,
+static vb2_error_t ui_get_bitmap_size(const struct ui_asset *bitmap,
 				      int32_t *width, int32_t *height)
 {
 	struct scale dim = {
@@ -147,7 +147,7 @@ static vb2_error_t ui_get_bitmap_size(const struct ui_bitmap *bitmap,
 	return VB2_SUCCESS;
 }
 
-vb2_error_t ui_get_bitmap_width(const struct ui_bitmap *bitmap,
+vb2_error_t ui_get_bitmap_width(const struct ui_asset *bitmap,
 				int32_t height, int32_t *width)
 {
 	*width = UI_SIZE_AUTO;
@@ -163,7 +163,7 @@ vb2_error_t ui_get_bitmap_width(const struct ui_bitmap *bitmap,
  * See b/158634754 for discussion of alternatives.
  * https://en.wikipedia.org/wiki/BMP_file_format#Bitmap_file_header
  */
-uint32_t ui_get_bitmap_num_lines(const struct ui_bitmap *bitmap)
+uint32_t ui_get_bitmap_num_lines(const struct ui_asset *bitmap)
 {
 	/* We use first reserved byte of bitmap_file_header. */
 	uint8_t num_lines = ((const uint8_t *)bitmap->data)
@@ -175,7 +175,7 @@ uint32_t ui_get_bitmap_num_lines(const struct ui_bitmap *bitmap)
 
 static vb2_error_t get_char_width(const char c, int32_t height, int32_t *width)
 {
-	struct ui_bitmap bitmap;
+	struct ui_asset bitmap;
 	VB2_TRY(ui_get_char_bitmap(c, &bitmap));
 	VB2_TRY(ui_get_bitmap_width(&bitmap, height, width));
 	return VB2_SUCCESS;
@@ -206,7 +206,7 @@ vb2_error_t ui_draw_text(const char *text,
 			 uint32_t flags, int reverse)
 {
 	int32_t char_width;
-	struct ui_bitmap bitmap;
+	struct ui_asset bitmap;
 
 	if (reverse) {
 		x = UI_SCALE - x;

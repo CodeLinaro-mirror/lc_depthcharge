@@ -249,10 +249,10 @@ static vb2_error_t get_font_archive(struct directory **dest)
 	return VB2_SUCCESS;
 }
 
-static vb2_error_t find_bitmap_in_archive(const struct directory *dir,
-					  const char *name,
-					  struct ui_bitmap *bitmap,
-					  int show_error)
+static vb2_error_t find_asset_in_archive(const struct directory *dir,
+					 const char *name,
+					 struct ui_asset *asset,
+					 int show_error)
 {
 	struct dentry *entry;
 	uintptr_t start;
@@ -273,10 +273,10 @@ static vb2_error_t find_bitmap_in_archive(const struct directory *dir,
 			return VB2_ERROR_UI_INVALID_ARCHIVE;
 		}
 
-		bitmap->name[UI_BITMAP_FILENAME_MAX_LEN] = '\0';
-		strncpy(bitmap->name, name, UI_BITMAP_FILENAME_MAX_LEN);
-		bitmap->data = (uint8_t *)dir + entry[i].offset;
-		bitmap->size = entry[i].size;
+		asset->name[UI_ASSET_FILENAME_MAX_LEN] = '\0';
+		strncpy(asset->name, name, UI_ASSET_FILENAME_MAX_LEN);
+		asset->data = (uint8_t *)dir + entry[i].offset;
+		asset->size = entry[i].size;
 		return VB2_SUCCESS;
 	}
 
@@ -285,8 +285,8 @@ static vb2_error_t find_bitmap_in_archive(const struct directory *dir,
 	return VB2_ERROR_UI_MISSING_IMAGE;
 }
 
-vb2_error_t ui_load_bitmap(enum ui_archive_type type, const char *file,
-			   const char *locale_code, struct ui_bitmap *bitmap)
+vb2_error_t ui_load_asset(enum ui_archive_type type, const char *file,
+			  const char *locale_code, struct ui_asset *asset)
 {
 	struct directory *ro_dir;
 	struct directory *rw_dir;
@@ -294,19 +294,19 @@ vb2_error_t ui_load_bitmap(enum ui_archive_type type, const char *file,
 	switch (type) {
 	case UI_ARCHIVE_GENERIC:
 		VB2_TRY(get_graphic_archive(&ro_dir));
-		return find_bitmap_in_archive(ro_dir, file, bitmap, 1);
+		return find_asset_in_archive(ro_dir, file, asset, 1);
 	case UI_ARCHIVE_LOCALIZED:
 		VB2_TRY(get_localized_graphic_archive(locale_code,
 						      &ro_dir, &rw_dir));
-		/* Bitmap may exist in RO, RW, or both.
+		/* Asset may exist in RO, RW, or both.
 		   Suppress error messages when searching in RW. */
 		if (rw_dir &&
-		    find_bitmap_in_archive(rw_dir, file, bitmap, 0) == VB2_SUCCESS)
+		    find_asset_in_archive(rw_dir, file, asset, 0) == VB2_SUCCESS)
 			return VB2_SUCCESS;
-		return find_bitmap_in_archive(ro_dir, file, bitmap, 1);
+		return find_asset_in_archive(ro_dir, file, asset, 1);
 	case UI_ARCHIVE_FONT:
 		VB2_TRY(get_font_archive(&ro_dir));
-		return find_bitmap_in_archive(ro_dir, file, bitmap, 1);
+		return find_asset_in_archive(ro_dir, file, asset, 1);
 	default:
 		UI_WARN("Unknown archive type %d\n", type);
 		return VB2_ERROR_UI_INVALID_ARCHIVE;

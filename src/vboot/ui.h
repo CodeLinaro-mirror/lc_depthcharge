@@ -48,7 +48,7 @@
 /* Maximum lengths */
 #define UI_LOCALE_CODE_MAX_LEN 8
 #define UI_CBFS_FILENAME_MAX_LEN 256
-#define UI_BITMAP_FILENAME_MAX_LEN 32
+#define UI_ASSET_FILENAME_MAX_LEN 32
 
 /*
  * This is the base used to specify the size and the coordinate of the image.
@@ -348,8 +348,8 @@ enum ui_button_code {
 	UI_BUTTON_VOL_UP_DOWN_COMBO_PRESS = 0x93,
 };
 
-struct ui_bitmap {
-	char name[UI_BITMAP_FILENAME_MAX_LEN + 1];
+struct ui_asset {
+	char name[UI_ASSET_FILENAME_MAX_LEN + 1];
 	const void *data;
 	size_t size;
 };
@@ -715,46 +715,62 @@ enum ui_archive_type {
 };
 
 /*
- * Load bitmap from archive.
+ * Load asset from archive.
  *
  * @param type		Archive type. See enum ui_archive_type.
- * @param file		Bitmap file name.
+ * @param file		Asset file name.
  * @param locale_code	Language code of locale, only for UI_ARCHIVE_LOCALIZED.
- * @param bitmap	Bitmap struct to be filled.
+ * @param asset		Asset struct to be filled.
  *
  * @return VB2_SUCCESS on success, non-zero on error.
  */
 
-vb2_error_t ui_load_bitmap(enum ui_archive_type type, const char *file,
-			   const char *locale_code, struct ui_bitmap *bitmap);
+vb2_error_t ui_load_asset(enum ui_archive_type type, const char *file,
+			  const char *locale_code, struct ui_asset *asset);
+
+/******************************************************************************/
+/* asset.c */
+
+/*
+ * Get asset.
+ *
+ * @param name		Image file name.
+ * @param locale_code	Language code of current locale, or NULL for
+ *			locale-independent asset.
+ * @param focused	1 for focused and 0 for non-focused.
+ * @param asset		Asset struct to be filled.
+ *
+ * @return VB2_SUCCESS on success, non-zero on error.
+ */
+vb2_error_t ui_get_asset(const char *name, const char *locale_code,
+			 int focused, struct ui_asset *asset);
+
+/*
+ * Get asset for language name.
+ *
+ * @param locale_code	Language code of locale.
+ * @param ext		Extension type for asset file.
+ * @param asset		Asset struct to be filled.
+ *
+ * @return VB2_SUCCESS on success, non-zero on error.
+ */
+vb2_error_t ui_get_language_name_asset(const char *locale_code,
+				       const char *ext,
+				       struct ui_asset *asset);
 
 /******************************************************************************/
 /* bitmap.c */
 
 /*
- * Get bitmap.
- *
- * @param image_name	Image file name.
- * @param locale_code	Language code of current locale, or NULL for
- *			locale-independent image.
- * @param focused	1 for focused and 0 for non-focused.
- * @param bitmap	Bitmap struct to be filled.
- *
- * @return VB2_SUCCESS on success, non-zero on error.
- */
-vb2_error_t ui_get_bitmap(const char *image_name, const char *locale_code,
-			  int focused, struct ui_bitmap *bitmap);
-
-/*
  * Get bitmap of language name.
  *
  * @param locale_code	Language code of locale.
- * @param bitmap	Bitmap struct to be filled.
+ * @param bitmap	Asset struct to be filled.
  *
  * @return VB2_SUCCESS on success, non-zero on error.
  */
 vb2_error_t ui_get_language_name_bitmap(const char *locale_code,
-					struct ui_bitmap *bitmap);
+					struct ui_asset *bitmap);
 
 /*
  * Get character bitmap.
@@ -764,7 +780,7 @@ vb2_error_t ui_get_language_name_bitmap(const char *locale_code,
  *
  * @return VB2_SUCCESS on success, non-zero on error.
  */
-vb2_error_t ui_get_char_bitmap(const char c, struct ui_bitmap *bitmap);
+vb2_error_t ui_get_char_bitmap(const char c, struct ui_asset *bitmap);
 
 /*
  * Get bitmap of step icon.
@@ -776,7 +792,7 @@ vb2_error_t ui_get_char_bitmap(const char c, struct ui_bitmap *bitmap);
  * @return VB2_SUCCESS on success, non-zero on error.
  */
 vb2_error_t ui_get_step_icon_bitmap(int step, int focused,
-				    struct ui_bitmap *bitmap);
+				    struct ui_asset *bitmap);
 
 /******************************************************************************/
 /* draw.c */
@@ -795,7 +811,7 @@ vb2_error_t ui_get_step_icon_bitmap(int step, int focused,
  *
  * @return VB2_SUCCESS on success, non-zero on error.
  */
-vb2_error_t ui_draw_bitmap(const struct ui_bitmap *bitmap,
+vb2_error_t ui_draw_bitmap(const struct ui_asset *bitmap,
 			   int32_t x, int32_t y, int32_t width, int32_t height,
 			   uint32_t flags, int reverse);
 
@@ -816,7 +832,7 @@ vb2_error_t ui_draw_bitmap(const struct ui_bitmap *bitmap,
  *
  * @return VB2_SUCCESS on success, non-zero on error.
  */
-vb2_error_t ui_draw_mapped_bitmap(const struct ui_bitmap *bitmap,
+vb2_error_t ui_draw_mapped_bitmap(const struct ui_asset *bitmap,
 				  int32_t x, int32_t y,
 				  int32_t width, int32_t height,
 				  const struct rgb_color *bg_color,
@@ -834,7 +850,7 @@ vb2_error_t ui_draw_mapped_bitmap(const struct ui_bitmap *bitmap,
  *
  * @return VB2_SUCCESS on success, non-zero on error.
  */
-vb2_error_t ui_get_bitmap_width(const struct ui_bitmap *bitmap,
+vb2_error_t ui_get_bitmap_width(const struct ui_asset *bitmap,
 				int32_t height, int32_t *width);
 
 /*
@@ -845,7 +861,7 @@ vb2_error_t ui_get_bitmap_width(const struct ui_bitmap *bitmap,
  * @return A strictly positive number of lines.  If bitmap does not contain
  *         text or is invalid, a value of 1 is returned.
  */
-uint32_t ui_get_bitmap_num_lines(const struct ui_bitmap *bitmap);
+uint32_t ui_get_bitmap_num_lines(const struct ui_asset *bitmap);
 
 /*
  * Get text width.

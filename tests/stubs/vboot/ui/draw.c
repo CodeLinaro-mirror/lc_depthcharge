@@ -20,7 +20,7 @@ vb2_error_t ui_draw_h_line(int32_t x, int32_t y,
 	return VB2_SUCCESS;
 }
 
-vb2_error_t ui_draw_mapped_bitmap(const struct ui_bitmap *bitmap,
+vb2_error_t ui_draw_mapped_bitmap(const struct ui_asset *bitmap,
 				  int32_t x, int32_t y,
 				  int32_t width, int32_t height,
 				  const struct rgb_color *bg_color,
@@ -30,20 +30,20 @@ vb2_error_t ui_draw_mapped_bitmap(const struct ui_bitmap *bitmap,
 	return VB2_SUCCESS;
 }
 
-vb2_error_t ui_draw_bitmap(const struct ui_bitmap *bitmap,
+vb2_error_t ui_draw_bitmap(const struct ui_asset *bitmap,
 			   int32_t x, int32_t y, int32_t width, int32_t height,
 			   uint32_t flags, int reverse)
 {
 	return VB2_SUCCESS;
 }
 
-vb2_error_t ui_get_bitmap_width(const struct ui_bitmap *bitmap,
+vb2_error_t ui_get_bitmap_width(const struct ui_asset *bitmap,
 				int32_t height, int32_t *width)
 {
 	return VB2_SUCCESS;
 }
 
-uint32_t ui_get_bitmap_num_lines(const struct ui_bitmap *bitmap)
+uint32_t ui_get_bitmap_num_lines(const struct ui_asset *bitmap)
 {
 	return 1;
 }
