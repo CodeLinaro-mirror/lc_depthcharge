@@ -975,3 +975,131 @@ vb2_error_t ui_draw_default(struct ui_context *ui,
 
 	return VB2_SUCCESS;
 }
+
+vb2_error_t ui_draw_error_box(const struct ui_error_message *error,
+			      const struct ui_state *state)
+{
+	vb2_error_t rv = VB2_SUCCESS;
+	int32_t x, y;
+	const int32_t w = UI_SIZE_AUTO;
+	int32_t h;
+	int32_t button_width;
+	const uint32_t flags = PIVOT_H_LEFT | PIVOT_V_TOP;
+	const int reverse = state->locale->rtl;
+	const char *locale_code = state->locale->code;
+
+	/* Center the box on the screen */
+	x = (UI_SCALE - UI_ERROR_BOX_WIDTH) / 2;
+	y = (UI_SCALE - UI_ERROR_BOX_HEIGHT) / 2;
+
+	/* Clear printing area */
+	ui_draw_rounded_box(x, y,
+			    UI_ERROR_BOX_WIDTH,
+			    UI_ERROR_BOX_HEIGHT,
+			    &ui_color_error_box,
+			    0,
+			    UI_ERROR_BOX_RADIUS,
+			    reverse);
+
+	x += UI_ERROR_BOX_PADDING;
+	y += UI_ERROR_BOX_PADDING;
+
+	/* Insert icon */
+	struct ui_asset bitmap;
+	VB2_TRY(ui_get_asset("ic_info.bmp", NULL, 0, &bitmap));
+	VB2_TRY(ui_draw_bitmap(&bitmap, x, y,
+			       UI_ERROR_BOX_ICON_HEIGHT,
+			       UI_ERROR_BOX_ICON_HEIGHT,
+			       flags, reverse));
+
+	/* Insert in the body */
+	y += UI_ERROR_BOX_SECTION_SPACING + UI_ERROR_BOX_ICON_HEIGHT;
+	VB2_TRY(ui_get_asset(error->file, locale_code, 0, &bitmap));
+	h = UI_ERROR_BOX_TEXT_HEIGHT * ui_get_bitmap_num_lines(&bitmap);
+	VB2_TRY(ui_draw_bitmap(&bitmap, x, y, w, h, flags, reverse));
+	y += h;
+	if (error->show_dev_url) {
+		y += UI_ERROR_BOX_TEXT_LINE_SPACING;
+		VB2_TRY(ui_get_asset("dev_mode_url.bmp", NULL, 0, &bitmap));
+		h = UI_ERROR_BOX_TEXT_HEIGHT * ui_get_bitmap_num_lines(&bitmap);
+		VB2_TRY(ui_draw_bitmap(&bitmap, x, y, w, h, flags, reverse));
+		y += h;
+	}
+
+	/* Insert "Back" button */
+	const struct ui_menu_item back_item = {
+		.file = "btn_back.bmp",
+	};
+	VB2_TRY(ui_get_asset(back_item.file, locale_code, 0, &bitmap));
+	int32_t text_width;
+	VB2_TRY(ui_get_bitmap_width(&bitmap, UI_BUTTON_TEXT_HEIGHT,
+				    &text_width));
+
+	button_width = text_width + (UI_BUTTON_TEXT_PADDING_H * 2);
+	/* x and y are top-left corner of the button */
+	x = (UI_SCALE + UI_ERROR_BOX_WIDTH) / 2 -
+		UI_ERROR_BOX_PADDING - button_width;
+	y = (UI_SCALE + UI_ERROR_BOX_HEIGHT) / 2 -
+		UI_ERROR_BOX_PADDING - UI_BUTTON_HEIGHT;
+	VB2_TRY(ui_draw_button(&back_item,
+			       state,
+			       x, y,
+			       button_width,
+			       UI_BUTTON_HEIGHT,
+			       1, 0, 0));
+
+	return rv;
+}
+
+static const struct rgb_color colors[] = {
+	[0x0] = { 0xff, 0xc0, 0xcb },	/* pink */
+	[0x1] = { 0xff, 0x00, 0x00 },	/* red */
+	[0x2] = { 0xff, 0xa5, 0x00 },	/* orange */
+	[0x3] = { 0xff, 0xff, 0x00 },	/* yellow */
+	[0x4] = { 0xa5, 0x2a, 0x2a },	/* brown */
+	[0x5] = { 0x80, 0x00, 0x00 },	/* maroon */
+	[0x6] = { 0x80, 0x80, 0x00 },	/* olive */
+	[0x7] = { 0x00, 0xff, 0x00 },	/* lime */
+	[0x8] = { 0x90, 0xee, 0x90 },	/* light green */
+	[0x9] = { 0x00, 0x80, 0x00 },	/* green */
+	[0xa] = { 0x00, 0xff, 0xff },	/* cyan */
+	[0xb] = { 0x00, 0x80, 0x80 },	/* teal */
+	[0xc] = { 0x00, 0x00, 0xff },	/* blue */
+	[0xd] = { 0x00, 0x00, 0x80 },	/* navy */
+	[0xe] = { 0xff, 0x00, 0xff },	/* magenta */
+	[0xf] = { 0x80, 0x00, 0x80 },	/* purple */
+};
+
+void ui_draw_fallback_stripes(enum ui_screen screen,
+			      uint32_t focused_item)
+{
+	int i, shift;
+	int32_t x, y;
+	const int32_t h = UI_FALLBACK_STRIPE_HEIGHT;
+	uint32_t digit;
+
+	/* stripe 1: reference color bar */
+	y = 0;
+	x = 0;
+	for (i = 0; i < ARRAY_SIZE(colors); i++) {
+		ui_draw_box(x, y, h, h, &colors[i], 0);
+		x += h;
+	}
+
+	/* stripe 2: screen id in hex encoding */
+	y += h;
+	x = 0;
+	for (shift = 3; shift >= 0; shift--) {  // Only display 4 digits
+		digit = (screen >> (shift * 4)) & 0xf;
+		ui_draw_box(x, y, h, h, &colors[digit], 0);
+		x += h;
+	}
+
+	/* stripe 3: focused_item by position */
+	y += h;
+	ui_draw_box(0, y, h * ARRAY_SIZE(colors), h, &colors[0xd], 0);
+	if (focused_item >= ARRAY_SIZE(colors))
+		return;
+	x = h * focused_item;
+	ui_draw_box(x, y, h, h, &colors[0x0], 0);
+}

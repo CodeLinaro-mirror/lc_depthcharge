@@ -206,6 +206,10 @@
 /* Enter fastboot */
 #define UI_KEY_DEV_FASTBOOT		UI_KEY_CTRL('F')
 
+/* For diagnostic test screens */
+#define UI_DIAGNOSTICS_TEST_BACK_FILE	"btn_back.bmp"
+#define UI_DIAGNOSTICS_TEST_CANCEL_FILE	"btn_cancel.bmp"
+
 /*
  * Screens
  *
@@ -358,6 +362,7 @@ struct ui_locale {
 	uint32_t id;		/* Locale id */
 	const char *code;	/* Language code */
 	int rtl;		/* Whether locale is right-to-left */
+	const char *font_name;  /* Font name */
 };
 
 /* Forward declarations. */
@@ -681,6 +686,15 @@ struct ui_screen_info {
 	uint32_t back_item;
 };
 
+struct ui_error_message {
+	/* File name of error strings. */
+	const char *file;
+	/* Whether to show dev mode URL below the error strings. */
+	int show_dev_url;
+	/* Fallback message */
+	const char *mesg;
+};
+
 /******************************************************************************/
 /* archive.c */
 
@@ -793,6 +807,62 @@ vb2_error_t ui_get_char_bitmap(const char c, struct ui_asset *bitmap);
  */
 vb2_error_t ui_get_step_icon_bitmap(int step, int focused,
 				    struct ui_asset *bitmap);
+
+/******************************************************************************/
+/* components.c */
+
+/*
+ * Draw log description.
+ *
+ * @param ui		UI context.
+ * @param prev_state	Previous UI state.
+ * @param y		Starting y-coordinate of the description. On return, the
+ *                      value will be the ending coordinate, excluding the margin
+ *			below the description.
+ *
+ * @return VB2_SUCCESS on success, non-zero on error.
+ */
+vb2_error_t ui_draw_log_desc(struct ui_context *ui,
+			     const struct ui_state *prev_state,
+			     int32_t *y);
+
+/*
+ * Draw menu for UI_SCREEN_LANGUAGE_SELECT.
+ *
+ * @param ui		UI context.
+ * @param prev_state	Previous UI state.
+ *
+ * @return VB2_SUCCESS on success, non-zero on error.
+ */
+vb2_error_t ui_draw_language_select_menu(struct ui_context *ui,
+					 const struct ui_state *prev_state);
+
+/*
+ * Draw description for UI_SCREEN_DEVELOPER_MODE.
+ *
+ * @param ui		UI context.
+ * @param prev_state	Previous UI state.
+ * @param y		Starting y-coordinate of the description. On return, the
+ *                      value will be the ending coordinate, excluding the margin
+ *			below the description.
+ *
+ * @return VB2_SUCCESS on success, non-zero on error.
+ */
+vb2_error_t ui_draw_developer_mode_desc(struct ui_context *ui,
+					const struct ui_state *prev_state,
+					int32_t *y);
+
+
+/*
+ * Get button widths on UI_SCREEN_DIAGNOSTICS_STORAGE_TEST_* screens.
+ *
+ * @param state		UI state.
+ * @param width		Integer width to be filled.
+ *
+ * @return VB2_SUCCESS on success, non-zero on error.
+ */
+vb2_error_t ui_diagnostics_test_back_get_width(const struct ui_state *state,
+					       int32_t *width);
 
 /******************************************************************************/
 /* draw.c */
@@ -1112,6 +1182,29 @@ vb2_error_t ui_draw_menu_items(const struct ui_menu *menu,
  */
 vb2_error_t ui_draw_default(struct ui_context *ui,
 			    const struct ui_state *prev_state);
+
+/*
+ * Draw an error box with a message.
+ *
+ * @param error		Error message struct to show.
+ * @param state		UI state.
+ *
+ * @return VB2_SUCCESS on success, non-zero on error.
+ */
+vb2_error_t ui_draw_error_box(const struct ui_error_message *error,
+			      const struct ui_state *state);
+
+/*
+ * When we don't know how much of the drawing failed, draw colored stripes as a
+ * fallback so the screen can be identified in a pinch. Place the stripes at the
+ * very top of the screen to avoid covering up anything that was drawn
+ * successfully.
+ *
+ * @param screen	UI screen.
+ * @param focused_item	Index of focused menu item.
+ */
+void ui_draw_fallback_stripes(enum ui_screen screen,
+			      uint32_t focused_item);
 
 /******************************************************************************/
 /* screens.c */

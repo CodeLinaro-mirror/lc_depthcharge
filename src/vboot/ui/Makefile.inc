@@ -11,7 +11,7 @@
 ## GNU General Public License for more details.
 ##
 
-subdirs-$(CONFIG_UI_LVGL) += lvgl
+subdirs-y += lp_graphics
 
 depthcharge-y += archive.c
 depthcharge-y += asset.c
@@ -26,7 +26,6 @@ endif
 
 depthcharge-y += draw.c
 depthcharge-y += input.c
-depthcharge-y += layout.c
 depthcharge-y += log.c
 depthcharge-y += loop.c
 depthcharge-y += menu.c

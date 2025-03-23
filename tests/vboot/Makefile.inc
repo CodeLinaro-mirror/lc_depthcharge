@@ -56,6 +56,7 @@ ui-test-common-srcs += src/debug/stubs.c
 ui-test-common-srcs += src/vboot/ui/display.c
 ui-test-common-srcs += src/vboot/ui/log.c
 ui-test-common-srcs += src/vboot/ui/loop.c
+ui-test-common-srcs += src/vboot/ui/lp_graphics/components.c
 ui-test-common-srcs += src/vboot/ui/menu.c
 ui-test-common-srcs += src/vboot/ui/navigation.c
 ui-test-common-srcs += src/vboot/ui/screens.c
