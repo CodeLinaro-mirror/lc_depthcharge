@@ -39,5 +39,7 @@ int fastboot_get_slot_count(GptData *gpt);
 char get_slot_for_partition_name(GptEntry *e, char *partition_name);
 GptEntry *fastboot_get_kernel_for_slot(GptData *gpt, char slot);
 void fastboot_slots_disable_all(GptData *gpt);
+bool fastboot_has_slot(GptData *gpt, const char *name, int len, bool *partition_found);
+bool partition_has_suffix(const char *partition_name);
 
 #endif // __FASTBOOT_DISK_H__

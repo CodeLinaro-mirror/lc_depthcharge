@@ -307,10 +307,9 @@ void fastboot_slots_disable_all(GptData *gpt)
 bool partition_has_suffix(const char *partition_name)
 {
 	size_t partition_name_len = strlen(partition_name);
-	return 	partition_name_len > 2 &&
-		(partition_name[partition_name_len - 2] == '-' ||
-		 partition_name[partition_name_len - 2] == '_') &&
-		isalpha(partition_name[partition_name_len - 1]);
+	return partition_name_len > 2 && (partition_name[partition_name_len - 2] == '-' ||
+					  partition_name[partition_name_len - 2] == '_') &&
+	       isalpha(partition_name[partition_name_len - 1]);
 }
 
 struct has_slot_ctx {
@@ -334,7 +333,7 @@ static bool has_slot_callback(void *ctx, int index, GptEntry *e, char *partition
 	    strncmp(partition_name, hctx->name, hctx->len) == 0) {
 		FB_DEBUG("%s: exact match found for input %s!\n", partition_name, hctx->name);
 		hctx->partition_found = true;
-		hctx->has_slot = current_partition_has_suffix;
+		hctx->has_slot = false;
 		return true;
 	}
 
@@ -352,8 +351,7 @@ static bool has_slot_callback(void *ctx, int index, GptEntry *e, char *partition
 	return false;
 }
 
-bool fastboot_has_slot(struct fastboot_disk *disk, const char *name, int len,
-		      bool *partition_found)
+bool fastboot_has_slot(GptData *gpt, const char *name, int len, bool *partition_found)
 {
 	struct has_slot_ctx ctx = {
 		.name = name,
@@ -362,7 +360,7 @@ bool fastboot_has_slot(struct fastboot_disk *disk, const char *name, int len,
 		.has_slot = false,
 		.name_has_suffix = partition_has_suffix(name),
 	};
-	fastboot_disk_foreach_partition(disk, has_slot_callback, &ctx);
+	gpt_foreach_partition(gpt, has_slot_callback, &ctx);
 	*partition_found = ctx.partition_found;
 	if (!ctx.partition_found)
 		FB_DEBUG("Could not find a partition named %s\n", name);
