@@ -40,6 +40,7 @@ static fastboot_getvar_info_t fastboot_vars[] = {
 	VAR_NO_ARGS("secure", VAR_SECURE),
 	VAR_NO_ARGS("slot-count", VAR_SLOT_COUNT),
 	VAR_NO_ARGS("version", VAR_VERSION),
+	VAR_ARGS("has-slot", ':', VAR_HAS_SLOT),
 	{.name = NULL},
 };
 
@@ -199,6 +200,22 @@ fastboot_getvar_result_t fastboot_getvar(fastboot_var_t var, const char *arg,
 	case VAR_VERSION:
 		used_len = snprintf(outbuf, *outbuf_len, "0.4");
 		break;
+	case VAR_HAS_SLOT: {
+		if (!fastboot_disk_init(&disk))
+			return STATE_DISK_ERROR;
+		bool partition_found = false;
+		if (fastboot_has_slot(&disk, arg, strlen(arg), &partition_found)) {
+			used_len = snprintf(outbuf, *outbuf_len, "yes");
+		} else if (partition_found) {
+			used_len = snprintf(outbuf, *outbuf_len, "no");
+                } else {
+			fastboot_disk_destroy(&disk);
+			return STATE_UNKNOWN_VAR;
+		}
+
+		fastboot_disk_destroy(&disk);
+		break;
+	}
 	default:
 		return STATE_UNKNOWN_VAR;
 	}
