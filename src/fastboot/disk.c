@@ -385,3 +385,50 @@ void fastboot_slots_disable_all(struct fastboot_disk *disk)
 {
 	fastboot_disk_foreach_partition(disk, disable_all_callback, disk->gpt);
 }
+
+struct has_slot_ctx {
+	const char *name;
+	int len;
+	bool partition_found;
+	bool has_slot;
+};
+
+static bool has_slot_callback(void *ctx, int index, GptEntry *e,
+			      char *partition_name)
+{
+	struct has_slot_ctx *hctx = (struct has_slot_ctx *)ctx;
+	size_t partition_name_len = strlen(partition_name);
+
+	bool has_slot = partition_name_len > 2 &&
+		(partition_name[partition_name_len - 2] == '-' ||
+                partition_name[partition_name_len - 2] == '_') &&
+                isalpha(partition_name[partition_name_len - 1]);
+
+	if ((has_slot && (partition_name_len != hctx->len + 2)) ||
+		(!has_slot && (partition_name_len != hctx->len)))
+		return false; // wrong length
+
+	if(strncmp(partition_name, hctx->name, hctx->len) == 0) {
+		FB_DEBUG("%s, %s: names match!", partition_name, hctx->name);
+		hctx->partition_found = true;
+		hctx->has_slot = has_slot;
+		return true; // Stop iteration
+	}
+	return false;
+}
+
+bool fastboot_has_slot(struct fastboot_disk *disk, const char *name, int len,
+		      bool *partition_found)
+{
+	struct has_slot_ctx ctx = {
+		.name = name,
+		.len = len,
+		.partition_found = false,
+		.has_slot = false,
+	};
+	fastboot_disk_foreach_partition(disk, has_slot_callback, &ctx);
+	*partition_found = ctx.partition_found;
+	if (!ctx.partition_found)
+		FB_DEBUG("Could not find a partition named %s\n", name);
+	return ctx.has_slot;
+}

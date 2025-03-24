@@ -48,6 +48,8 @@ void fastboot_erase(struct FastbootOps *fb, struct fastboot_disk *disk,
 int fastboot_get_slot_count(struct fastboot_disk *disk);
 char get_slot_for_partition_name(GptEntry *e, char *partition_name);
 GptEntry *fastboot_get_kernel_for_slot(struct fastboot_disk *disk, char slot);
+bool fastboot_has_slot(struct fastboot_disk *disk, const char *name, int len,
+			bool *partition_found);
 void fastboot_slots_disable_all(struct fastboot_disk *disk);
 int fastboot_get_number_of_partitions(struct fastboot_disk *disk);
 /* Returns partition name as an ASCII string. Caller should free the data. */
