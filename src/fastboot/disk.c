@@ -432,3 +432,38 @@ bool fastboot_has_slot(struct fastboot_disk *disk, const char *name, int len,
 		FB_DEBUG("Could not find a partition named %s\n", name);
 	return ctx.has_slot;
 }
+
+struct slot_suffixes_ctx {
+	char *suffixes;
+	size_t len;
+	size_t max_len;
+};
+
+static bool slot_suffixes_callback(void *ctx, int index, GptEntry *e,
+				   char *partition_name)
+{
+	struct slot_suffixes_ctx *ss = (struct slot_suffixes_ctx *)ctx;
+	char slot = get_slot_for_partition_name(e, partition_name);
+	if (slot == 0)
+		return false;
+	if (ss->len > 0) {
+		if (ss->len + 2 >= ss->max_len) {
+			FB_DEBUG("Error: exceeded allocated space for suffixes (%0d) \n",
+				FASTBOOT_MAX_SLOTS*2);
+			return true;
+		}
+		ss->suffixes[ss->len++] = ',';
+	}
+	ss->suffixes[ss->len++] = slot;
+	return false;
+}
+
+char *fastboot_get_slot_suffixes(struct fastboot_disk *disk)
+{
+	struct slot_suffixes_ctx ctx = {
+		.suffixes = xzalloc(FASTBOOT_MAX_SLOTS*2),
+		.max_len = FASTBOOT_MAX_SLOTS*2,
+	};
+	fastboot_disk_foreach_partition(disk, slot_suffixes_callback, &ctx);
+	return ctx.suffixes;
+}
