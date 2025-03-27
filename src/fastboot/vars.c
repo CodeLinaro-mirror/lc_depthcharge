@@ -328,16 +328,13 @@ fastboot_getvar_result_t fastboot_getvar(struct FastbootOps *fb, fastboot_var_t 
 		break;
 	}
 	case VAR_SLOT_SUFFIXES: {
-		if (!fastboot_disk_init(&disk))
+		if (fastboot_disk_gpt_init(fb))
 			return STATE_DISK_ERROR;
-		char *suffixes = fastboot_get_slot_suffixes(&disk);
-		if (suffixes == NULL) {
-			fastboot_disk_destroy(&disk);
+		char *suffixes = fastboot_get_slot_suffixes(fb->gpt);
+		if (suffixes == NULL)
 			return STATE_DISK_ERROR;
-		}
 		used_len = snprintf(outbuf, *outbuf_len, "%s", suffixes);
 		free(suffixes);
-		fastboot_disk_destroy(&disk);
 		break;
 	}
 	case VAR_SLOT_SUCCESSFUL: {

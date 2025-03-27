@@ -382,7 +382,7 @@ static bool slot_suffixes_callback(void *ctx, int index, GptEntry *e,
 		return false;
 	if (ss->len > 0) {
 		if (ss->len + 2 >= ss->max_len) {
-			FB_DEBUG("Error: exceeded allocated space for suffixes (%0d) \n",
+			FB_DEBUG("Error: exceeded allocated space for suffixes (%0d)\n",
 				FASTBOOT_MAX_SLOTS*2);
 			return true;
 		}
@@ -392,12 +392,12 @@ static bool slot_suffixes_callback(void *ctx, int index, GptEntry *e,
 	return false;
 }
 
-char *fastboot_get_slot_suffixes(struct fastboot_disk *disk)
+char *fastboot_get_slot_suffixes(GptData *gpt)
 {
 	struct slot_suffixes_ctx ctx = {
 		.suffixes = xzalloc(FASTBOOT_MAX_SLOTS*2),
 		.max_len = FASTBOOT_MAX_SLOTS*2,
 	};
-	fastboot_disk_foreach_partition(disk, slot_suffixes_callback, &ctx);
+	gpt_foreach_partition(gpt, slot_suffixes_callback, &ctx);
 	return ctx.suffixes;
 }
