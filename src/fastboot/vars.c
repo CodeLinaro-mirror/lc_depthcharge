@@ -46,16 +46,7 @@ static fastboot_getvar_info_t fastboot_vars[] = {
 	VAR_NO_ARGS("secure", VAR_SECURE),
 	VAR_NO_ARGS("slot-count", VAR_SLOT_COUNT),
 	VAR_NO_ARGS("version", VAR_VERSION),
-	VAR_NO_ARGS("version-bootloader", VAR_VERSION_BOOTLOADER),
-	VAR_ARGS("has-slot", ':', VAR_HAS_SLOT),
 	VAR_NO_ARGS("slot-suffixes", VAR_SLOT_SUFFIXES),
-	VAR_ARGS("slot-successful", ':', VAR_SLOT_SUCCESSFUL),
-	VAR_ARGS("slot-retry-count", ':', VAR_SLOT_RETRY_COUNT),
-	VAR_ARGS("slot-unbootable", ':', VAR_SLOT_UNBOOTABLE),
-	VAR_NO_ARGS("logical-block-size", VAR_LOGICAL_BLOCK_SIZE),
-	/* erase-block-size is the same as logical-block-size, added for completeness*/
-	VAR_NO_ARGS("erase-block-size", VAR_LOGICAL_BLOCK_SIZE),
-	VAR_NO_ARGS("serialno", VAR_SERIALNO),
 	{.name = NULL},
 };
 
@@ -294,155 +285,11 @@ fastboot_getvar_result_t fastboot_getvar(struct FastbootOps *fb, fastboot_var_t 
 	case VAR_VERSION:
 		used_len = snprintf(outbuf, *outbuf_len, "0.4");
 		break;
-	case VAR_VERSION_BOOTLOADER: {
-		const char *fw_id = get_active_fw_id();
-		if (fw_id == NULL)
-			used_len = snprintf(outbuf, *outbuf_len, "unknown");
-		else
-			used_len = snprintf(outbuf, *outbuf_len, "%s", fw_id);
-		break;
-	}
-	case VAR_HAS_SLOT: {
-		bool has_slot = false;
-		if (fastboot_disk_gpt_init_no_fail(fb))
+	case VAR_SLOT_SUFFIXES:
+		if (fastboot_disk_gpt_init(fb))
 			return STATE_DISK_ERROR;
-		if (arg != NULL) {
-			bool partition_found = false;
-			has_slot = fastboot_has_slot(fb->gpt, arg, strlen(arg),
-						     &partition_found);
-			if (!partition_found)
-				return STATE_UNKNOWN_VAR;
-		} else {
-			int name_len;
-			fastboot_getvar_result_t state =
-				fastboot_get_partition_name_by_index(fb->gpt, index, &name,
-								     &part);
-			if (state != STATE_OK)
-				return state;
-			name_len = strlen(name);
-			has_slot = partition_has_suffix(name);
-			if (has_slot) {
-				if (tolower(name[name_len - 1]) != 'a')
-					return STATE_TRY_NEXT;
-				name_len -= 2;
-			}
-			used_len = snprintf(outbuf, *outbuf_len, "%.*s:", name_len, name);
-			outbuf += used_len;
-			*outbuf_len -= used_len;
-			free(name);
-		}
-		used_len += snprintf(outbuf, *outbuf_len, has_slot ? "yes" : "no");
+		used_len = fastboot_get_slot_suffixes(fb->gpt, outbuf, *outbuf_len);
 		break;
-	}
-	case VAR_SLOT_SUFFIXES: {
-		if (fastboot_disk_gpt_init_no_fail(fb))
-			return STATE_DISK_ERROR;
-		char *suffixes = fastboot_get_slot_suffixes(fb->gpt);
-		if (suffixes == NULL)
-			return STATE_DISK_ERROR;
-		used_len = snprintf(outbuf, *outbuf_len, "%s", suffixes);
-		free(suffixes);
-		break;
-	}
-	case VAR_SLOT_SUCCESSFUL:
-		if (fastboot_disk_gpt_init_no_fail(fb))
-			return STATE_DISK_ERROR;
-
-		if (arg != NULL) {
-			if (strlen(arg) != 1 || !isalpha(arg[0]))
-				return STATE_UNKNOWN_VAR;
-			char slot_char_arg = tolower(arg[0]);
-			GptEntry *e = fastboot_get_kernel_for_slot(fb->gpt, slot_char_arg);
-			if (e == NULL)
-				return STATE_UNKNOWN_VAR;
-			used_len = snprintf(outbuf, *outbuf_len, "%s",
-					    GetEntrySuccessful(e) ? "yes" : "no");
-		} else {
-			/* Handling for "getvar all" - arg is NULL, use index. */
-			GptEntry *entry_for_index = NULL;
-			char slot_char_for_index = 0;
-			fastboot_getvar_result_t find_slot_state =
-				fastboot_get_kernel_slot_by_index(fb->gpt, index,
-								  &entry_for_index,
-								  &slot_char_for_index);
-			if (find_slot_state != STATE_OK)
-				return find_slot_state;
-			used_len = snprintf(outbuf, *outbuf_len, "%c:%s", slot_char_for_index,
-					    GetEntrySuccessful(entry_for_index) ? "yes" : "no");
-		}
-		break;
-	case VAR_SLOT_RETRY_COUNT:
-		if (fastboot_disk_gpt_init_no_fail(fb))
-			return STATE_DISK_ERROR;
-
-		if (arg != NULL) {
-			if (strlen(arg) != 1 || !isalpha(arg[0]))
-				return STATE_UNKNOWN_VAR; // Invalid slot format
-			char slot_char_arg = tolower(arg[0]);
-			GptEntry *e = fastboot_get_kernel_for_slot(fb->gpt, slot_char_arg);
-			if (e == NULL)
-				return STATE_UNKNOWN_VAR;
-			used_len = snprintf(outbuf, *outbuf_len, "%d", GetEntryTries(e));
-		} else {
-			// Handling for "getvar all"; arg is NULL, use index.
-			GptEntry *entry_for_index = NULL;
-			char slot_char_for_index = 0;
-			fastboot_getvar_result_t find_slot_state =
-				fastboot_get_kernel_slot_by_index(fb->gpt, index,
-								  &entry_for_index,
-								  &slot_char_for_index);
-			if (find_slot_state != STATE_OK)
-				return find_slot_state;
-			used_len = snprintf(outbuf, *outbuf_len, "%c:%d", slot_char_for_index,
-					    GetEntryTries(entry_for_index));
-		}
-		break;
-	case VAR_SLOT_UNBOOTABLE: {
-		if (fastboot_disk_gpt_init_no_fail(fb))
-			return STATE_DISK_ERROR;
-
-		if (arg != NULL) {
-			if (strlen(arg) != 1 || !isalpha(arg[0]))
-				return STATE_UNKNOWN_VAR;
-			char slot_char_arg = tolower(arg[0]);
-			GptEntry *e = fastboot_get_kernel_for_slot(fb->gpt, slot_char_arg);
-			if (e == NULL)
-				return STATE_UNKNOWN_VAR;
-			bool is_unbootable = is_entry_unbootable(e);
-			used_len = snprintf(outbuf, *outbuf_len,
-					    is_unbootable ? "yes" : "no");
-		} else {
-			/* Handling for "getvar all" - arg is NULL, use index. */
-			GptEntry *entry_for_index = NULL;
-			char slot_char_for_index = 0;
-			fastboot_getvar_result_t find_slot_state =
-				fastboot_get_kernel_slot_by_index(fb->gpt, index,
-					&entry_for_index, &slot_char_for_index);
-			if (find_slot_state != STATE_OK)
-				return find_slot_state;
-			bool is_unbootable = is_entry_unbootable(entry_for_index);
-			used_len = snprintf(outbuf, *outbuf_len, "%c:%s", slot_char_for_index,
-					    is_unbootable ? "yes" : "no");
-		}
-		break;
-	}
-	case VAR_LOGICAL_BLOCK_SIZE:
-		if (fastboot_disk_init_no_fail(fb))
-			return STATE_DISK_ERROR;
-
-		used_len = snprintf(outbuf, *outbuf_len, "0x%x", fb->disk->block_size);
-		break;
-	case VAR_SERIALNO: {
-		u32 vpd_size;
-		const void *vpd_data = vpd_find("serial_number", NULL, NULL, &vpd_size);
-
-		if (vpd_data && vpd_size > 0)
-			used_len = snprintf(outbuf, *outbuf_len, "%.*s",
-					       (int)vpd_size, (const char *)vpd_data);
-		else
-			used_len = snprintf(outbuf, *outbuf_len, "unknown");
-		break;
-	}
 	default:
 		return STATE_UNKNOWN_VAR;
 	}

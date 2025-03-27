@@ -328,100 +328,31 @@ void fastboot_slots_disable_all(GptData *gpt)
 	gpt_foreach_partition(gpt, disable_all_callback, gpt);
 }
 
-bool partition_has_suffix(const char *partition_name)
+int fastboot_get_slot_suffixes(GptData *gpt, char *outbuf, size_t outbuf_len)
 {
-	size_t partition_name_len = strlen(partition_name);
-	return partition_name_len > 2 && (partition_name[partition_name_len - 2] == '-' ||
-					  partition_name[partition_name_len - 2] == '_') &&
-	       isalpha(partition_name[partition_name_len - 1]);
-}
+	int total = 0;
+	struct kpi_ctx result = {
+		.kernel_count = 0,
+		.present = 0,
+	};
+	gpt_foreach_partition(gpt, check_kernel_partition_info, &result);
 
-struct has_slot_ctx {
-	const char *name;
-	int len;
-	bool partition_found;
-	bool has_slot;
-	bool name_has_suffix;
-};
-
-static bool has_slot_callback(void *ctx, int index, GptEntry *e, char *partition_name)
-{
-	struct has_slot_ctx *hctx = (struct has_slot_ctx *)ctx;
-	size_t partition_name_len = strlen(partition_name);
-
-	bool current_partition_has_suffix = partition_has_suffix(partition_name);
-
-	/* Exact match (e.g., input "metadata", found "metadata" OR input
-	"boot_a", found "boot_a") */
-	if (partition_name_len == hctx->len &&
-	    strncmp(partition_name, hctx->name, hctx->len) == 0) {
-		FB_DEBUG("%s: exact match found for input %s!\n", partition_name, hctx->name);
-		hctx->partition_found = true;
-		hctx->has_slot = false;
-		return true;
-	}
-
-	/* Match base name with slot suffix (e.g., input "boot", found "boot_a")  */
-	if (current_partition_has_suffix && !hctx->name_has_suffix) {
-		if (partition_name_len == hctx->len + 2 &&
-		    strncmp(partition_name, hctx->name, hctx->len) == 0) {
-			FB_DEBUG("%s: match with suffix found for base name %s!\n",
-				 partition_name, hctx->name);
-			hctx->partition_found = true;
-			hctx->has_slot = true;
-			return true;
+	outbuf[0] = '\0';
+	for (char slot = 'a'; slot <= 'z'; slot++) {
+		if (result.present & BIT(slot - 'a')) {
+			int ret = snprintf(outbuf, outbuf_len, "%c,", slot);
+			if (ret < 0)
+				return ret;
+			if (outbuf_len >= ret) {
+				outbuf += ret;
+				outbuf_len -= ret;
+			} else {
+				outbuf += outbuf_len;
+				outbuf_len = 0;
+			}
+			total += ret;
 		}
 	}
-	return false;
-}
 
-bool fastboot_has_slot(GptData *gpt, const char *name, int len, bool *partition_found)
-{
-	struct has_slot_ctx ctx = {
-		.name = name,
-		.len = len,
-		.partition_found = false,
-		.has_slot = false,
-		.name_has_suffix = partition_has_suffix(name),
-	};
-	gpt_foreach_partition(gpt, has_slot_callback, &ctx);
-	*partition_found = ctx.partition_found;
-	if (!ctx.partition_found)
-		FB_DEBUG("Could not find a partition named %s\n", name);
-	return ctx.has_slot;
-}
-
-struct slot_suffixes_ctx {
-	char *suffixes;
-	size_t len;
-	size_t max_len;
-};
-
-static bool slot_suffixes_callback(void *ctx, int index, GptEntry *e,
-				   char *partition_name)
-{
-	struct slot_suffixes_ctx *ss = (struct slot_suffixes_ctx *)ctx;
-	char slot = get_slot_for_partition_name(e, partition_name);
-	if (slot == 0)
-		return false;
-	if (ss->len > 0) {
-		if (ss->len + 2 >= ss->max_len) {
-			FB_DEBUG("Error: exceeded allocated space for suffixes (%0d)\n",
-				FASTBOOT_MAX_SLOTS*2);
-			return true;
-		}
-		ss->suffixes[ss->len++] = ',';
-	}
-	ss->suffixes[ss->len++] = slot;
-	return false;
-}
-
-char *fastboot_get_slot_suffixes(GptData *gpt)
-{
-	struct slot_suffixes_ctx ctx = {
-		.suffixes = xzalloc(FASTBOOT_MAX_SLOTS*2),
-		.max_len = FASTBOOT_MAX_SLOTS*2,
-	};
-	gpt_foreach_partition(gpt, slot_suffixes_callback, &ctx);
-	return ctx.suffixes;
+	return total;
 }

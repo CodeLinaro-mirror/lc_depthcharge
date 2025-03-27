@@ -93,112 +93,19 @@ GptEntry *GptNextKernelEntry(GptData *gpt)
 /* Setup for GptNextKernelEntry mock */
 #define WILL_GET_NEXT_KERNEL_ENTRY(ret) will_return(GptNextKernelEntry, ret)
 
-bool fastboot_has_slot(GptData *gpt, const char *name, int len, bool *partition_found)
+int fastboot_get_slot_suffixes(GptData *gpt, char *outbuf, size_t outbuf_len)
 {
 	assert_ptr_equal(gpt, &test_gpt);
-	check_expected(name);
-	check_expected(len);
+	char *suffixes = mock_ptr_type(char *);
+	int suffixes_len = strlen(suffixes);
 
-	*partition_found = mock();
-	return mock();
-}
+	memcpy(outbuf, suffixes, MIN(suffixes_len + 1, outbuf_len));
 
-/* Setup for fastboot_has_slot mock */
-#define WILL_CHECK_HAS_SLOT(n, found, ret) do { \
-	expect_string(fastboot_has_slot, name, n); \
-	expect_value(fastboot_has_slot, len, strlen(n)); \
-	will_return(fastboot_has_slot, found); \
-	will_return(fastboot_has_slot, ret); \
-} while (0)
-
-bool partition_has_suffix(const char *partition_name)
-{
-	check_expected(partition_name);
-
-	return mock();
-}
-
-/* Setup for partition_has_suffix mock */
-#define WILL_CHECK_HAS_SUFFIX(n, ret) do { \
-	expect_string(partition_has_suffix, partition_name, n); \
-	will_return(partition_has_suffix, ret); \
-} while (0)
-
-char *fastboot_get_slot_suffixes(GptData *gpt)
-{
-	assert_ptr_equal(gpt, &test_gpt);
-
-	return mock_ptr_type(char *);
+	return suffixes_len;
 }
 
 /* Setup for fastboot_get_slot_suffixes mock */
 #define WILL_GET_SLOT_SUFFIXES(ret) will_return(fastboot_get_slot_suffixes, ret)
-
-int IsUnusedEntry(const GptEntry *e)
-{
-	check_expected_ptr(e);
-
-	return mock();
-}
-
-/* Setup for IsUnusedEntry mock */
-#define WILL_CHECK_UNUSED_ENTRY(entry, ret) do { \
-	expect_value(IsUnusedEntry, e, entry); \
-	will_return(IsUnusedEntry, ret); \
-} while (0)
-
-int GetEntrySuccessful(const GptEntry *e)
-{
-	check_expected_ptr(e);
-
-	return mock();
-}
-
-/* Setup for GetEntrySuccessful mock */
-#define WILL_GET_ENTRY_SUCCESSFUL(entry, ret) do { \
-	expect_value(GetEntrySuccessful, e, entry); \
-	will_return(GetEntrySuccessful, ret); \
-} while (0)
-
-int GetEntryTries(const GptEntry *e)
-{
-	check_expected_ptr(e);
-
-	return mock();
-}
-
-/* Setup for GetEntryTries mock */
-#define WILL_GET_ENTRY_TRIES(entry, ret) do { \
-	expect_value(GetEntryTries, e, entry); \
-	will_return(GetEntryTries, ret); \
-} while (0)
-
-const char *get_active_fw_id(void)
-{
-	return mock_ptr_type(char *);
-}
-
-/* Setup for get_active_fw_id mock */
-#define WILL_GET_ACTIVE_FW_ID(ret) will_return(get_active_fw_id, ret)
-
-const u8 *vpd_find(const char *key, const u8 *blob, u32 *offset, u32 *size)
-{
-	check_expected(key);
-	assert_ptr_equal(blob, NULL);
-	assert_ptr_equal(offset, NULL);
-
-	*size = mock();
-
-	return mock_ptr_type(u8 *);
-}
-
-/* Setup for vpd_find mock */
-#define WILL_VPD_FIND(k, len, ret) do { \
-	expect_string(vpd_find, key, k); \
-	will_return(vpd_find, len); \
-	will_return(vpd_find, ret); \
-} while (0)
-
 
 /* Reset mock data (for use before each test) */
 static int setup(void **state)
@@ -647,366 +554,14 @@ static void test_fb_getvar_current_slot_empty_name(void **state)
 	TEST_FASTBOOT_GETVAR_ERR(VAR_CURRENT_SLOT, "", STATE_DISK_ERROR);
 }
 
-static void test_fb_getvar_has_slot(void **state)
-{
-	WILL_CHECK_HAS_SLOT("part", true, true);
-	TEST_FASTBOOT_GETVAR_OK(VAR_HAS_SLOT, "part", "yes");
-}
-
-static void test_fb_getvar_has_no_slot(void **state)
-{
-	WILL_CHECK_HAS_SLOT("super", true, false);
-	TEST_FASTBOOT_GETVAR_OK(VAR_HAS_SLOT, "super", "no");
-}
-
-static void test_fb_getvar_has_slot_no_partition(void **state)
-{
-	WILL_CHECK_HAS_SLOT("unk", false, false);
-	TEST_FASTBOOT_GETVAR_ERR(VAR_HAS_SLOT, "unk", STATE_UNKNOWN_VAR);
-}
-
-static void test_fb_getvar_has_slot_a_at_index(void **state)
-{
-	GptEntry *part = (void *)0xcafe;
-
-	WILL_CHECK_HAS_SUFFIX("part_a", true);
-	/* Print just the base name without a slot */
-	test_fb_getvar_partition_at_index(state, VAR_HAS_SLOT, part, "part_a", "part:yes");
-}
-
-static void test_fb_getvar_has_slot_b_at_index(void **state)
-{
-	struct FastbootOps *fb = *state;
-	char var_buf[FASTBOOT_MSG_MAX];
-	size_t out_len = sizeof(var_buf);
-	GptEntry *part = (void *)0xcafe;
-
-	WILL_GET_NUMBER_OF_PARTITIONS(5);
-	WILL_GET_PARTITION(3, part);
-	WILL_CHECK_UNUSED_ENTRY(part, 0);
-	WILL_GET_ENTRY_NAME(part, "part_b");
-	WILL_CHECK_HAS_SUFFIX("part_b", true);
-	/* Shouldn't print base name for other slots than "a" */
-	assert_int_equal(fastboot_getvar(fb, VAR_HAS_SLOT, NULL, 3, var_buf, &out_len),
-			 STATE_TRY_NEXT);
-}
-
-static void test_fb_getvar_has_no_slot_at_index(void **state)
-{
-	GptEntry *part = (void *)0xcafe;
-
-	WILL_CHECK_HAS_SUFFIX("part", false);
-	test_fb_getvar_partition_at_index(state, VAR_HAS_SLOT, part, "part", "part:no");
-}
-
-static void test_fb_getvar_has_slot_at_index_not_exist(void **state)
-{
-	test_fb_getvar_partition_at_index_not_exist(state, VAR_HAS_SLOT);
-}
-
-static void test_fb_getvar_has_slot_at_index_unused(void **state)
-{
-	test_fb_getvar_partition_at_index_unused(state, VAR_HAS_SLOT);
-}
-
-static void test_fb_getvar_has_slot_at_index_no_name(void **state)
-{
-	test_fb_getvar_partition_at_index_no_name(state, VAR_HAS_SLOT);
-}
-
-static void test_fb_getvar_has_slot_at_index_last(void **state)
-{
-	test_fb_getvar_partition_at_index_last(state, VAR_HAS_SLOT);
-}
-
 static void test_fb_getvar_slot_suffixes(void **state)
 {
 	WILL_GET_SLOT_SUFFIXES("a,b");
 	TEST_FASTBOOT_GETVAR_OK(VAR_SLOT_SUFFIXES, "", "a,b");
 }
 
-static void test_fb_getvar_slot_suffixes_fail(void **state)
-{
-	WILL_GET_SLOT_SUFFIXES(NULL);
-	TEST_FASTBOOT_GETVAR_ERR(VAR_SLOT_SUFFIXES, "", STATE_DISK_ERROR);
-}
-
-static void test_fb_getvar_slot_successful(void **state)
-{
-	GptEntry *part = (void *)0xcafe;
-
-	WILL_GET_KERNEL_FOR_SLOT('a', part);
-	WILL_GET_ENTRY_SUCCESSFUL(part, 1);
-	TEST_FASTBOOT_GETVAR_OK(VAR_SLOT_SUCCESSFUL, "a", "yes");
-
-	/* Check uppercase conversion */
-	WILL_GET_KERNEL_FOR_SLOT('b', part);
-	WILL_GET_ENTRY_SUCCESSFUL(part, 1);
-	TEST_FASTBOOT_GETVAR_OK(VAR_SLOT_SUCCESSFUL, "B", "yes");
-}
-
-static void test_fb_getvar_slot_unsuccessful(void **state)
-{
-	GptEntry *part = (void *)0xcafe;
-
-	WILL_GET_KERNEL_FOR_SLOT('a', part);
-	WILL_GET_ENTRY_SUCCESSFUL(part, 0);
-	TEST_FASTBOOT_GETVAR_OK(VAR_SLOT_SUCCESSFUL, "A", "no");
-}
-
-static void test_fb_getvar_slot_successful_no_kernel(void **state)
-{
-	WILL_GET_KERNEL_FOR_SLOT('a', NULL);
-	TEST_FASTBOOT_GETVAR_ERR(VAR_SLOT_SUCCESSFUL, "a", STATE_UNKNOWN_VAR);
-}
-
-static void test_fb_getvar_slot_successful_bad_slot(void **state)
-{
-	TEST_FASTBOOT_GETVAR_ERR(VAR_SLOT_SUCCESSFUL, ":", STATE_UNKNOWN_VAR);
-	TEST_FASTBOOT_GETVAR_ERR(VAR_SLOT_SUCCESSFUL, "ab", STATE_UNKNOWN_VAR);
-	TEST_FASTBOOT_GETVAR_ERR(VAR_SLOT_SUCCESSFUL, "1", STATE_UNKNOWN_VAR);
-}
-
-static void test_fb_getvar_slot_successful_at_index(void **state)
-{
-	GptEntry *part = (void *)0xcafe;
-
-	WILL_GET_ENTRY_SUCCESSFUL(part, 1);
-	test_fb_getvar_kernel_slot_at_index(state, VAR_SLOT_SUCCESSFUL, part, "vbmeta_a", 'a',
-					    "a:yes");
-}
-
-static void test_fb_getvar_slot_unsuccessful_at_index(void **state)
-{
-	GptEntry *part = (void *)0xcafe;
-
-	WILL_GET_ENTRY_SUCCESSFUL(part, 0);
-	test_fb_getvar_kernel_slot_at_index(state, VAR_SLOT_SUCCESSFUL, part, "vbmeta_a", 'a',
-					    "a:no");
-}
-
-static void test_fb_getvar_slot_successful_at_index_no_slot(void **state)
-{
-	test_fb_getvar_kernel_slot_at_index_no_slot(state, VAR_SLOT_SUCCESSFUL);
-}
-
-static void test_fb_getvar_slot_successful_at_index_not_exist(void **state)
-{
-	test_fb_getvar_partition_at_index_not_exist(state, VAR_SLOT_SUCCESSFUL);
-}
-
-static void test_fb_getvar_slot_successful_at_index_unused(void **state)
-{
-	test_fb_getvar_partition_at_index_unused(state, VAR_SLOT_SUCCESSFUL);
-}
-
-static void test_fb_getvar_slot_successful_at_index_no_name(void **state)
-{
-	test_fb_getvar_partition_at_index_no_name(state, VAR_SLOT_SUCCESSFUL);
-}
-
-static void test_fb_getvar_slot_successful_at_index_last(void **state)
-{
-	test_fb_getvar_partition_at_index_last(state, VAR_SLOT_SUCCESSFUL);
-}
-
-static void test_fb_getvar_slot_retry_count(void **state)
-{
-	GptEntry *part = (void *)0xcafe;
-
-	WILL_GET_KERNEL_FOR_SLOT('a', part);
-	WILL_GET_ENTRY_TRIES(part, 1);
-	TEST_FASTBOOT_GETVAR_OK(VAR_SLOT_RETRY_COUNT, "a", "1");
-
-	/* Check uppercase conversion */
-	WILL_GET_KERNEL_FOR_SLOT('b', part);
-	WILL_GET_ENTRY_TRIES(part, 3);
-	TEST_FASTBOOT_GETVAR_OK(VAR_SLOT_RETRY_COUNT, "B", "3");
-}
-
-static void test_fb_getvar_slot_retry_count_no_kernel(void **state)
-{
-	WILL_GET_KERNEL_FOR_SLOT('a', NULL);
-	TEST_FASTBOOT_GETVAR_ERR(VAR_SLOT_RETRY_COUNT, "a", STATE_UNKNOWN_VAR);
-}
-
-static void test_fb_getvar_slot_retry_count_bad_slot(void **state)
-{
-	TEST_FASTBOOT_GETVAR_ERR(VAR_SLOT_RETRY_COUNT, ":", STATE_UNKNOWN_VAR);
-	TEST_FASTBOOT_GETVAR_ERR(VAR_SLOT_RETRY_COUNT, "ab", STATE_UNKNOWN_VAR);
-	TEST_FASTBOOT_GETVAR_ERR(VAR_SLOT_RETRY_COUNT, "1", STATE_UNKNOWN_VAR);
-}
-
-static void test_fb_getvar_slot_retry_count_at_index(void **state)
-{
-	GptEntry *part = (void *)0xcafe;
-
-	WILL_GET_ENTRY_TRIES(part, 5);
-	test_fb_getvar_kernel_slot_at_index(state, VAR_SLOT_RETRY_COUNT, part, "vbmeta_a", 'a',
-					    "a:5");
-}
-
-static void test_fb_getvar_slot_retry_count_at_index_no_slot(void **state)
-{
-	test_fb_getvar_kernel_slot_at_index_no_slot(state, VAR_SLOT_RETRY_COUNT);
-}
-
-static void test_fb_getvar_slot_retry_count_at_index_not_exist(void **state)
-{
-	test_fb_getvar_partition_at_index_not_exist(state, VAR_SLOT_RETRY_COUNT);
-}
-
-static void test_fb_getvar_slot_retry_count_at_index_unused(void **state)
-{
-	test_fb_getvar_partition_at_index_unused(state, VAR_SLOT_RETRY_COUNT);
-}
-
-static void test_fb_getvar_slot_retry_count_at_index_no_name(void **state)
-{
-	test_fb_getvar_partition_at_index_no_name(state, VAR_SLOT_RETRY_COUNT);
-}
-
-static void test_fb_getvar_slot_retry_count_at_index_last(void **state)
-{
-	test_fb_getvar_partition_at_index_last(state, VAR_SLOT_RETRY_COUNT);
-}
-
-static void test_fb_getvar_logical_block_size(void **state)
-{
-	test_disk.block_size = 0x200;
-
-	TEST_FASTBOOT_GETVAR_OK(VAR_LOGICAL_BLOCK_SIZE, "", "0x200");
-}
-
-static void test_fb_getvar_slot_unbootable(void **state)
-{
-	GptEntry *part = (void *)0xcafe;
-
-	/* Unbootable, because partition isn't kernel */
-	WILL_GET_KERNEL_FOR_SLOT('a', part);
-	WILL_CHECK_BOOTABLE_ENTRY(part, false);
-	TEST_FASTBOOT_GETVAR_OK(VAR_SLOT_UNBOOTABLE, "a", "yes");
-
-	/* Unbootable, because partition has 0 priority */
-	WILL_GET_KERNEL_FOR_SLOT('b', part);
-	WILL_CHECK_BOOTABLE_ENTRY(part, true);
-	WILL_GET_PRIORITY(part, 0);
-	TEST_FASTBOOT_GETVAR_OK(VAR_SLOT_UNBOOTABLE, "B", "yes");
-
-	/* Unbootable, because partition isn't successful and has zero tries */
-	WILL_GET_KERNEL_FOR_SLOT('a', part);
-	WILL_CHECK_BOOTABLE_ENTRY(part, true);
-	WILL_GET_PRIORITY(part, 3);
-	WILL_GET_ENTRY_SUCCESSFUL(part, 0);
-	WILL_GET_ENTRY_TRIES(part, 0);
-	TEST_FASTBOOT_GETVAR_OK(VAR_SLOT_UNBOOTABLE, "A", "yes");
-}
-
-static void test_fb_getvar_slot_bootable(void **state)
-{
-	GptEntry *part = (void *)0xcafe;
-
-	WILL_GET_KERNEL_FOR_SLOT('a', part);
-	WILL_CHECK_BOOTABLE_ENTRY(part, true);
-	WILL_GET_PRIORITY(part, 5);
-	WILL_GET_ENTRY_SUCCESSFUL(part, 0);
-	WILL_GET_ENTRY_TRIES(part, 3);
-	TEST_FASTBOOT_GETVAR_OK(VAR_SLOT_UNBOOTABLE, "A", "no");
-
-	WILL_GET_KERNEL_FOR_SLOT('b', part);
-	WILL_CHECK_BOOTABLE_ENTRY(part, true);
-	WILL_GET_PRIORITY(part, 5);
-	WILL_GET_ENTRY_SUCCESSFUL(part, 1);
-	TEST_FASTBOOT_GETVAR_OK(VAR_SLOT_UNBOOTABLE, "B", "no");
-}
-
-static void test_fb_getvar_slot_unbootable_no_kernel(void **state)
-{
-	WILL_GET_KERNEL_FOR_SLOT('a', NULL);
-	TEST_FASTBOOT_GETVAR_ERR(VAR_SLOT_UNBOOTABLE, "a", STATE_UNKNOWN_VAR);
-}
-
-static void test_fb_getvar_slot_unbootable_bad_slot(void **state)
-{
-	TEST_FASTBOOT_GETVAR_ERR(VAR_SLOT_UNBOOTABLE, ":", STATE_UNKNOWN_VAR);
-	TEST_FASTBOOT_GETVAR_ERR(VAR_SLOT_UNBOOTABLE, "ab", STATE_UNKNOWN_VAR);
-	TEST_FASTBOOT_GETVAR_ERR(VAR_SLOT_UNBOOTABLE, "1", STATE_UNKNOWN_VAR);
-}
-
-static void test_fb_getvar_slot_unbootable_at_index(void **state)
-{
-	GptEntry *part = (void *)0xcafe;
-
-	WILL_CHECK_BOOTABLE_ENTRY(part, false);
-	test_fb_getvar_kernel_slot_at_index(state, VAR_SLOT_UNBOOTABLE, part, "vbmeta_a", 'a',
-					    "a:yes");
-}
-
-static void test_fb_getvar_slot_bootable_at_index(void **state)
-{
-	GptEntry *part = (void *)0xcafe;
-
-	WILL_CHECK_BOOTABLE_ENTRY(part, true);
-	WILL_GET_PRIORITY(part, 5);
-	WILL_GET_ENTRY_SUCCESSFUL(part, 1);
-	test_fb_getvar_kernel_slot_at_index(state, VAR_SLOT_UNBOOTABLE, part, "vbmeta_a", 'a',
-					    "a:no");
-}
-
-static void test_fb_getvar_slot_unbootable_at_index_no_slot(void **state)
-{
-	test_fb_getvar_kernel_slot_at_index_no_slot(state, VAR_SLOT_UNBOOTABLE);
-}
-
-static void test_fb_getvar_slot_unbootable_at_index_not_exist(void **state)
-{
-	test_fb_getvar_partition_at_index_not_exist(state, VAR_SLOT_UNBOOTABLE);
-}
-
-static void test_fb_getvar_slot_unbootable_at_index_unused(void **state)
-{
-	test_fb_getvar_partition_at_index_unused(state, VAR_SLOT_UNBOOTABLE);
-}
-
-static void test_fb_getvar_slot_unbootable_at_index_no_name(void **state)
-{
-	test_fb_getvar_partition_at_index_no_name(state, VAR_SLOT_UNBOOTABLE);
-}
-
-static void test_fb_getvar_slot_unbootable_at_index_last(void **state)
-{
-	test_fb_getvar_partition_at_index_last(state, VAR_SLOT_UNBOOTABLE);
-}
-
-static void test_fb_getvar_version_bootloader(void **state)
-{
-	WILL_GET_ACTIVE_FW_ID("FWID");
-	TEST_FASTBOOT_GETVAR_OK(VAR_VERSION_BOOTLOADER, "", "FWID");
-
-	WILL_GET_ACTIVE_FW_ID(NULL);
-	TEST_FASTBOOT_GETVAR_OK(VAR_VERSION_BOOTLOADER, "", "unknown");
-}
-
-static void test_fb_getvar_serialno(void **state)
-{
-	WILL_VPD_FIND("serial_number", 4, "123456789");
-	TEST_FASTBOOT_GETVAR_OK(VAR_SERIALNO, "", "1234");
-
-	WILL_VPD_FIND("serial_number", 0, "123456789");
-	TEST_FASTBOOT_GETVAR_OK(VAR_SERIALNO, "", "unknown");
-
-	WILL_VPD_FIND("serial_number", 2, NULL);
-	TEST_FASTBOOT_GETVAR_OK(VAR_SERIALNO, "", "unknown");
-}
-
-static void test_fb_getvar_disk_block_count(void **state)
-{
-	test_disk.block_count = 0x1000;
-
-	TEST_FASTBOOT_GETVAR_OK(VAR_DISK_BLOCK_COUNT, "", "0x1000");
-}
-
 /* fastboot_cmd_getvar tests */
+
 static void test_fb_cmd_getvar_current_slot(void **state)
 {
 	struct FastbootOps *fb = *state;
@@ -1113,17 +668,6 @@ static void test_fb_cmd_getvar_version(void **state)
 	fastboot_cmd_getvar(fb, "version");
 }
 
-static void test_fb_cmd_getvar_has_slot(void **state)
-{
-	struct FastbootOps *fb = *state;
-
-	WILL_CHECK_HAS_SLOT("part", true, true);
-
-	WILL_SEND_EXACT(fb, "OKAYyes");
-
-	fastboot_cmd_getvar(fb, "has-slot:part");
-}
-
 static void test_fb_cmd_getvar_slot_suffixes(void **state)
 {
 	struct FastbootOps *fb = *state;
@@ -1133,100 +677,6 @@ static void test_fb_cmd_getvar_slot_suffixes(void **state)
 	WILL_SEND_EXACT(fb, "OKAYa,b");
 
 	fastboot_cmd_getvar(fb, "slot-suffixes");
-}
-
-static void test_fb_cmd_getvar_slot_successful(void **state)
-{
-	struct FastbootOps *fb = *state;
-	GptEntry *part = (void *)0xcafe;
-
-	WILL_GET_KERNEL_FOR_SLOT('a', part);
-	WILL_GET_ENTRY_SUCCESSFUL(part, 1);
-
-	WILL_SEND_EXACT(fb, "OKAYyes");
-
-	fastboot_cmd_getvar(fb, "slot-successful:a");
-}
-
-static void test_fb_cmd_getvar_slot_retry_count(void **state)
-{
-	struct FastbootOps *fb = *state;
-	GptEntry *part = (void *)0xcafe;
-
-	WILL_GET_KERNEL_FOR_SLOT('a', part);
-	WILL_GET_ENTRY_TRIES(part, 10);
-
-	WILL_SEND_EXACT(fb, "OKAY10");
-
-	fastboot_cmd_getvar(fb, "slot-retry-count:a");
-}
-
-static void test_fb_cmd_getvar_logical_block_size(void **state)
-{
-	struct FastbootOps *fb = *state;
-
-	test_disk.block_size = 0x400;
-
-	WILL_SEND_EXACT(fb, "OKAY0x400");
-
-	fastboot_cmd_getvar(fb, "logical-block-size");
-}
-
-static void test_fb_cmd_getvar_erase_block_size(void **state)
-{
-	struct FastbootOps *fb = *state;
-
-	test_disk.block_size = 0x400;
-
-	WILL_SEND_EXACT(fb, "OKAY0x400");
-
-	fastboot_cmd_getvar(fb, "erase-block-size");
-}
-
-static void test_fb_cmd_getvar_slot_unbootable(void **state)
-{
-	struct FastbootOps *fb = *state;
-	GptEntry *part = (void *)0xcafe;
-
-	WILL_GET_KERNEL_FOR_SLOT('a', part);
-	WILL_CHECK_BOOTABLE_ENTRY(part, false);
-
-	WILL_SEND_EXACT(fb, "OKAYyes");
-
-	fastboot_cmd_getvar(fb, "slot-unbootable:a");
-}
-
-static void test_fb_cmd_getvar_version_bootloader(void **state)
-{
-	struct FastbootOps *fb = *state;
-
-	WILL_GET_ACTIVE_FW_ID("fwversion");
-
-	WILL_SEND_EXACT(fb, "OKAYfwversion");
-
-	fastboot_cmd_getvar(fb, "version-bootloader");
-}
-
-static void test_fb_cmd_getvar_serialno(void **state)
-{
-	struct FastbootOps *fb = *state;
-
-	WILL_VPD_FIND("serial_number", 4, "123456789");
-
-	WILL_SEND_EXACT(fb, "OKAY1234");
-
-	fastboot_cmd_getvar(fb, "serialno");
-}
-
-static void test_fb_cmd_getvar_disk_block_count(void **state)
-{
-	struct FastbootOps *fb = *state;
-
-	test_disk.block_count = 0x1000;
-
-	WILL_SEND_EXACT(fb, "OKAY0x1000");
-
-	fastboot_cmd_getvar(fb, "Disk-block-count");
 }
 
 /* fastboot_cmd_getvar fail tests */
@@ -1369,18 +819,6 @@ static void test_fb_cmd_getvar_all(void **state)
 	/* Setup for slot-suffixes */
 	WILL_GET_SLOT_SUFFIXES("a,b");
 
-	/* Setup for logical-block-size and erase-block-size */
-	test_disk.block_size = 0x1000;
-
-	/* Setup for version-bootloader */
-	WILL_GET_ACTIVE_FW_ID("fwversion");
-
-	/* Setup for serialno */
-	WILL_VPD_FIND("serial_number", 4, "123456789");
-
-	/* Setup for Disk-block-count */
-	test_disk.block_count = 0x5000;
-
 	fastboot_cmd_getvar(fb, "all");
 
 	if (packets_list.next == NULL)
@@ -1420,11 +858,6 @@ static void test_fb_cmd_getvar_all(void **state)
 	check_fb_cmd_getvar_all_contains("INFOslot-count:1");
 	check_fb_cmd_getvar_all_contains("INFOversion:0.4");
 	check_fb_cmd_getvar_all_contains("INFOslot-suffixes:a,b");
-	check_fb_cmd_getvar_all_contains("INFOlogical-block-size:0x1000");
-	check_fb_cmd_getvar_all_contains("INFOerase-block-size:0x1000");
-	check_fb_cmd_getvar_all_contains("INFOversion-bootloader:fwversion");
-	check_fb_cmd_getvar_all_contains("INFOserialno:1234");
-	check_fb_cmd_getvar_all_contains("INFODisk-block-count:0x5000");
 
 	list_for_each(node, packets_list, list_node) {
 		fail_msg("Unexpected message: \"%s\"", node->msg);
@@ -1482,20 +915,8 @@ static void test_fb_cmd_getvar_all_fail_get_var(void **state)
 	/* Setup for slot-count */
 	WILL_GET_SLOT_COUNT(1);
 
-	/* Setup for slot-suffixes - will fail */
-	WILL_GET_SLOT_SUFFIXES(NULL);
-
-	/* Setup for logical-block-size and erase-block-size */
-	test_disk.block_size = 0x1000;
-
-	/* Setup for version-bootloader */
-	WILL_GET_ACTIVE_FW_ID("fwversion");
-
-	/* Setup for serialno */
-	WILL_VPD_FIND("serial_number", 4, "123456789");
-
-	/* Setup for Disk-block-count */
-	test_disk.block_count = 0x5000;
+	/* Setup for slot-suffixes */
+	WILL_GET_SLOT_SUFFIXES("a,b");
 
 	fastboot_cmd_getvar(fb, "all");
 
@@ -1534,11 +955,7 @@ static void test_fb_cmd_getvar_all_fail_get_var(void **state)
 	check_fb_cmd_getvar_all_contains("INFOsecure:no");
 	check_fb_cmd_getvar_all_contains("INFOslot-count:1");
 	check_fb_cmd_getvar_all_contains("INFOversion:0.4");
-	check_fb_cmd_getvar_all_contains("INFOlogical-block-size:0x1000");
-	check_fb_cmd_getvar_all_contains("INFOerase-block-size:0x1000");
-	check_fb_cmd_getvar_all_contains("INFOversion-bootloader:fwversion");
-	check_fb_cmd_getvar_all_contains("INFOserialno:1234");
-	check_fb_cmd_getvar_all_contains("INFODisk-block-count:0x5000");
+	check_fb_cmd_getvar_all_contains("INFOslot-suffixes:a,b");
 
 	list_for_each(node, packets_list, list_node) {
 		fail_msg("Unexpected message: \"%s\"", node->msg);
@@ -1575,53 +992,7 @@ int main(void)
 		TEST(test_fb_getvar_current_slot_no_kernel),
 		TEST(test_fb_getvar_current_slot_no_name),
 		TEST(test_fb_getvar_current_slot_empty_name),
-		TEST(test_fb_getvar_has_slot),
-		TEST(test_fb_getvar_has_no_slot),
-		TEST(test_fb_getvar_has_slot_no_partition),
-		TEST(test_fb_getvar_has_slot_a_at_index),
-		TEST(test_fb_getvar_has_slot_b_at_index),
-		TEST(test_fb_getvar_has_no_slot_at_index),
-		TEST(test_fb_getvar_has_slot_at_index_not_exist),
-		TEST(test_fb_getvar_has_slot_at_index_no_name),
-		TEST(test_fb_getvar_has_slot_at_index_unused),
-		TEST(test_fb_getvar_has_slot_at_index_last),
 		TEST(test_fb_getvar_slot_suffixes),
-		TEST(test_fb_getvar_slot_suffixes_fail),
-		TEST(test_fb_getvar_slot_successful),
-		TEST(test_fb_getvar_slot_unsuccessful),
-		TEST(test_fb_getvar_slot_successful_no_kernel),
-		TEST(test_fb_getvar_slot_successful_bad_slot),
-		TEST(test_fb_getvar_slot_successful_at_index),
-		TEST(test_fb_getvar_slot_unsuccessful_at_index),
-		TEST(test_fb_getvar_slot_successful_at_index_no_slot),
-		TEST(test_fb_getvar_slot_successful_at_index_not_exist),
-		TEST(test_fb_getvar_slot_successful_at_index_unused),
-		TEST(test_fb_getvar_slot_successful_at_index_no_name),
-		TEST(test_fb_getvar_slot_successful_at_index_last),
-		TEST(test_fb_getvar_slot_retry_count),
-		TEST(test_fb_getvar_slot_retry_count_no_kernel),
-		TEST(test_fb_getvar_slot_retry_count_bad_slot),
-		TEST(test_fb_getvar_slot_retry_count_at_index),
-		TEST(test_fb_getvar_slot_retry_count_at_index_no_slot),
-		TEST(test_fb_getvar_slot_retry_count_at_index_not_exist),
-		TEST(test_fb_getvar_slot_retry_count_at_index_unused),
-		TEST(test_fb_getvar_slot_retry_count_at_index_no_name),
-		TEST(test_fb_getvar_slot_retry_count_at_index_last),
-		TEST(test_fb_getvar_logical_block_size),
-		TEST(test_fb_getvar_slot_unbootable),
-		TEST(test_fb_getvar_slot_bootable),
-		TEST(test_fb_getvar_slot_unbootable_no_kernel),
-		TEST(test_fb_getvar_slot_unbootable_bad_slot),
-		TEST(test_fb_getvar_slot_unbootable_at_index),
-		TEST(test_fb_getvar_slot_bootable_at_index),
-		TEST(test_fb_getvar_slot_unbootable_at_index_no_slot),
-		TEST(test_fb_getvar_slot_unbootable_at_index_not_exist),
-		TEST(test_fb_getvar_slot_unbootable_at_index_unused),
-		TEST(test_fb_getvar_slot_unbootable_at_index_no_name),
-		TEST(test_fb_getvar_slot_unbootable_at_index_last),
-		TEST(test_fb_getvar_version_bootloader),
-		TEST(test_fb_getvar_serialno),
-		TEST(test_fb_getvar_disk_block_count),
 		TEST(test_fb_cmd_getvar_current_slot),
 		TEST(test_fb_cmd_getvar_download_size),
 		TEST(test_fb_cmd_getvar_is_userspace),
@@ -1631,16 +1002,7 @@ int main(void)
 		TEST(test_fb_cmd_getvar_secure),
 		TEST(test_fb_cmd_getvar_slot_count),
 		TEST(test_fb_cmd_getvar_version),
-		TEST(test_fb_cmd_getvar_has_slot),
 		TEST(test_fb_cmd_getvar_slot_suffixes),
-		TEST(test_fb_cmd_getvar_slot_successful),
-		TEST(test_fb_cmd_getvar_slot_retry_count),
-		TEST(test_fb_cmd_getvar_logical_block_size),
-		TEST(test_fb_cmd_getvar_erase_block_size),
-		TEST(test_fb_cmd_getvar_slot_unbootable),
-		TEST(test_fb_cmd_getvar_version_bootloader),
-		TEST(test_fb_cmd_getvar_serialno),
-		TEST(test_fb_cmd_getvar_disk_block_count),
 		TEST(test_fb_cmd_getvar_get_fail),
 		TEST(test_fb_cmd_getvar_no_args),
 		TEST(test_fb_cmd_getvar_prefix_of_var_name),

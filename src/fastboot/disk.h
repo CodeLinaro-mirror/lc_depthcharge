@@ -41,7 +41,7 @@ void fastboot_erase(struct FastbootOps *fb, const char *partition_name);
 int fastboot_get_slot_count(GptData *gpt);
 char get_slot_for_partition_name(GptEntry *e, char *partition_name);
 GptEntry *fastboot_get_kernel_for_slot(GptData *gpt, char slot);
-char *fastboot_get_slot_suffixes(GptData *gpt);
+int fastboot_get_slot_suffixes(GptData *gpt, char *outbuf, size_t outbuf_len);
 void fastboot_slots_disable_all(GptData *gpt);
 bool fastboot_has_slot(GptData *gpt, const char *name, int len, bool *partition_found);
 bool partition_has_suffix(const char *partition_name);
