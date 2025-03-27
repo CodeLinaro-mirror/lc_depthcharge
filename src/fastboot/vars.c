@@ -41,6 +41,7 @@ static fastboot_getvar_info_t fastboot_vars[] = {
 	VAR_NO_ARGS("slot-count", VAR_SLOT_COUNT),
 	VAR_NO_ARGS("version", VAR_VERSION),
 	VAR_ARGS("has-slot", ':', VAR_HAS_SLOT),
+	VAR_NO_ARGS("slot-suffixes", VAR_SLOT_SUFFIXES),
 	{.name = NULL},
 };
 
@@ -220,6 +221,19 @@ fastboot_getvar_result_t fastboot_getvar(fastboot_var_t var, const char *arg,
 			return STATE_UNKNOWN_VAR;
 		}
 
+		fastboot_disk_destroy(&disk);
+		break;
+	}
+	case VAR_SLOT_SUFFIXES: {
+		if (!fastboot_disk_init(&disk))
+			return STATE_DISK_ERROR;
+		char *suffixes = fastboot_get_slot_suffixes(&disk);
+		if (suffixes == NULL) {
+			fastboot_disk_destroy(&disk);
+			return STATE_DISK_ERROR;
+		}
+		used_len = snprintf(outbuf, *outbuf_len, "%s", suffixes);
+		free(suffixes);
 		fastboot_disk_destroy(&disk);
 		break;
 	}
