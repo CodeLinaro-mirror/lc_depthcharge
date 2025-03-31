@@ -16,6 +16,7 @@
  */
 
 #include <arch/virtual.h>
+#include <ctype.h>
 #include <string.h>
 #include <sysinfo.h>
 
@@ -42,6 +43,7 @@ static fastboot_getvar_info_t fastboot_vars[] = {
 	VAR_NO_ARGS("version", VAR_VERSION),
 	VAR_ARGS("has-slot", ':', VAR_HAS_SLOT),
 	VAR_NO_ARGS("slot-suffixes", VAR_SLOT_SUFFIXES),
+	VAR_ARGS("slot-successful", ':', VAR_SLOT_SUCCESSFUL),
 	{.name = NULL},
 };
 
@@ -227,6 +229,29 @@ fastboot_getvar_result_t fastboot_getvar(fastboot_var_t var, const char *arg,
 		}
 		used_len = snprintf(outbuf, *outbuf_len, "%s", suffixes);
 		free(suffixes);
+		fastboot_disk_destroy(&disk);
+		break;
+	}
+	case VAR_SLOT_SUCCESSFUL: {
+		if (!fastboot_disk_init(&disk))
+			return STATE_DISK_ERROR;
+
+		if (strlen(arg) != 1 || !isalpha(arg[0])) {
+			fastboot_disk_destroy(&disk);
+			return STATE_UNKNOWN_VAR;
+		}
+
+		char slot = tolower(arg[0]);
+
+		GptEntry *e = fastboot_get_kernel_for_slot(&disk, slot);
+		if (e == NULL) {
+			fastboot_disk_destroy(&disk);
+			return STATE_UNKNOWN_VAR;
+		}
+
+		used_len = snprintf(outbuf, *outbuf_len,
+				    GetEntrySuccessful(e) ? "yes" : "no");
+
 		fastboot_disk_destroy(&disk);
 		break;
 	}
