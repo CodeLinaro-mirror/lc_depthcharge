@@ -26,4 +26,17 @@ void setup_test_fb(void);
 	expect_in_range(fb_mock_send_packet, len, strlen(data) + 1, 256); \
 } while (0)
 
+/* Setup for fastboot_get_kernel_for_slot mock */
+#define WILL_GET_KERNEL_FOR_SLOT(slot_arg, entry) do { \
+	expect_value(fastboot_get_kernel_for_slot, slot, slot_arg); \
+	will_return(fastboot_get_kernel_for_slot, entry); \
+} while (0)
+
+/* Setup for get_slot_for_partition_name mock */
+#define WILL_GET_SLOT_FOR_PARTITION_NAME(entry, name, slot) do { \
+	expect_value(get_slot_for_partition_name, e, entry); \
+	expect_string(get_slot_for_partition_name, partition_name, name); \
+	will_return(get_slot_for_partition_name, slot); \
+} while (0)
+
 #endif /* _FASTBOOT_COMMON_MOCKS_H */

@@ -34,3 +34,19 @@ int fastboot_disk_gpt_init(struct FastbootOps *fb)
 
 	return 0;
 }
+
+GptEntry *fastboot_get_kernel_for_slot(GptData *gpt, char slot)
+{
+	assert_ptr_equal(gpt, &test_gpt);
+	check_expected(slot);
+
+	return mock_ptr_type(GptEntry *);
+}
+
+char get_slot_for_partition_name(GptEntry *e, char *partition_name)
+{
+	check_expected_ptr(e);
+	check_expected(partition_name);
+
+	return mock();
+}
