@@ -27,35 +27,22 @@ void setup_test_fb(void);
 	expect_in_range(fb_mock_send_packet, len, strlen(data) + 1, 256); \
 } while (0)
 
+/* Setup for get_slot_for_partition_name mock */
+#define WILL_GET_SLOT_FOR_PARTITION_NAME(n, ret) do { \
+	expect_string(fastboot_get_slot_for_partition_name, partition_name, n); \
+	will_return(fastboot_get_slot_for_partition_name, ret); \
+} while (0)
+
 /* Setup for fastboot_get_kernel_for_slot mock */
 #define WILL_GET_KERNEL_FOR_SLOT(slot_arg, entry) do { \
 	expect_value(fastboot_get_kernel_for_slot, slot, slot_arg); \
 	will_return(fastboot_get_kernel_for_slot, entry); \
 } while (0)
 
-/* Setup for get_slot_for_partition_name mock */
-#define WILL_GET_SLOT_FOR_PARTITION_NAME(entry, name, slot) do { \
-	expect_value(get_slot_for_partition_name, e, entry); \
-	expect_string(get_slot_for_partition_name, partition_name, name); \
-	will_return(get_slot_for_partition_name, slot); \
-} while (0)
-
-/* Setup for GetEntryPriority mock */
-#define WILL_GET_PRIORITY(entry, priority) do { \
-	expect_value(GetEntryPriority, e, entry); \
-	will_return(GetEntryPriority, priority); \
-} while (0)
-
-/* Setup for IsBootableEntry mock */
-#define WILL_CHECK_BOOTABLE_ENTRY(entry, ret) do { \
-	expect_value(IsBootableEntry, e, entry); \
-	will_return(IsBootableEntry, ret); \
-} while (0)
-
-/* Setup for gpt_find_partition mock */
-#define WILL_FIND_PARTITION(name, ret) do { \
-	expect_string(gpt_find_partition, partition_name, name); \
-	will_return(gpt_find_partition, ret); \
+/* Setup for IsAndroid mock */
+#define WILL_CHECK_ANDROID(entry, ret) do { \
+	expect_value(IsAndroid, e, entry); \
+	will_return(IsAndroid, ret); \
 } while (0)
 
 #endif /* _FASTBOOT_COMMON_MOCKS_H */

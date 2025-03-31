@@ -47,6 +47,7 @@ static fastboot_getvar_info_t fastboot_vars[] = {
 	VAR_NO_ARGS("slot-count", VAR_SLOT_COUNT),
 	VAR_NO_ARGS("version", VAR_VERSION),
 	VAR_NO_ARGS("slot-suffixes", VAR_SLOT_SUFFIXES),
+	VAR_ARGS("slot-successful", ':', VAR_SLOT_SUCCESSFUL),
 	{.name = NULL},
 };
 
@@ -117,17 +118,13 @@ void fastboot_cmd_getvar(struct FastbootOps *fb, const char *args)
 }
 
 static fastboot_getvar_result_t fastboot_get_partition_name_by_index(
-					GptData *gpt,
-					size_t index, char **name, GptEntry **part)
+		GptData *gpt, size_t index, char **name, GptEntry **part)
 {
 	if (gpt_get_number_of_partitions(gpt) <= index)
 		return STATE_LAST;
 
 	*part = gpt_get_partition(gpt, index);
 	if (*part == NULL)
-		return STATE_TRY_NEXT;
-
-	if (IsUnusedEntry(*part))
 		return STATE_TRY_NEXT;
 
 	*name = gpt_get_entry_name(*part);
@@ -147,33 +144,15 @@ static fastboot_getvar_result_t fastboot_get_kernel_slot_by_index(
 	if (state != STATE_OK)
 		return state;
 
-	*out_slot_char = get_slot_for_partition_name(*out_entry, name);
+	if (!IsAndroid(*out_entry))
+		return STATE_TRY_NEXT;
+
+	*out_slot_char = fastboot_get_slot_for_partition_name(name);
 	free(name);
 	if (*out_slot_char == 0)
 		return STATE_TRY_NEXT;
 
 	return STATE_OK;
-}
-
-static bool is_entry_unbootable(GptEntry *entry)
-{
-	return !IsBootableEntry(entry) || GetEntryPriority(entry) == 0 ||
-		(!GetEntrySuccessful(entry) &&  GetEntryTries(entry) == 0);
-}
-
-/* Helper function to get partition type string based on name */
-static const char *get_partition_type_string(const char *name)
-{
-	if (!strcmp(name, "OEM"))
-		return "ext4";
-	else if (!strcmp(name, "EFI-SYSTEM"))
-		return "vfat";
-	else if (!strcmp(name, "metadata"))
-		return "ext4";
-	else if (!strcmp(name, "userdata"))
-		return "ext4";
-
-	return "raw"; /* All other partitions are "raw" type*/
 }
 
 fastboot_getvar_result_t fastboot_getvar(struct FastbootOps *fb, fastboot_var_t var,
@@ -289,6 +268,33 @@ fastboot_getvar_result_t fastboot_getvar(struct FastbootOps *fb, fastboot_var_t 
 		if (fastboot_disk_gpt_init(fb))
 			return STATE_DISK_ERROR;
 		used_len = fastboot_get_slot_suffixes(fb->gpt, outbuf, *outbuf_len);
+		break;
+	case VAR_SLOT_SUCCESSFUL:
+		if (fastboot_disk_gpt_init(fb))
+			return STATE_DISK_ERROR;
+
+		if (arg != NULL) {
+			if (strlen(arg) != 1)
+				return STATE_UNKNOWN_VAR;
+			char slot_char_arg = arg[0];
+			GptEntry *e = fastboot_get_kernel_for_slot(fb->gpt, slot_char_arg);
+			if (e == NULL)
+				return STATE_UNKNOWN_VAR;
+			used_len = snprintf(outbuf, *outbuf_len, "%s",
+					    GetEntrySuccessful(e) ? "yes" : "no");
+		} else {
+			/* Handling for "getvar all" - arg is NULL, use index. */
+			GptEntry *entry_for_index = NULL;
+			char slot_char_for_index = 0;
+			fastboot_getvar_result_t find_slot_state =
+				fastboot_get_kernel_slot_by_index(fb->gpt, index,
+								  &entry_for_index,
+								  &slot_char_for_index);
+			if (find_slot_state != STATE_OK)
+				return find_slot_state;
+			used_len = snprintf(outbuf, *outbuf_len, "%c:%s", slot_char_for_index,
+					    GetEntrySuccessful(entry_for_index) ? "yes" : "no");
+		}
 		break;
 	default:
 		return STATE_UNKNOWN_VAR;

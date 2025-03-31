@@ -37,12 +37,11 @@ int fastboot_do_disk_gpt_init(struct FastbootOps *fb, bool send_fail)
 	return 0;
 }
 
-int fastboot_do_disk_init(struct FastbootOps *fb, bool send_fail)
+char fastboot_get_slot_for_partition_name(const char *partition_name)
 {
-	assert_true(send_fail == fastboot_disk_init_could_fail);
-	fb->disk = &test_disk;
+	check_expected(partition_name);
 
-	return 0;
+	return mock();
 }
 
 GptEntry *fastboot_get_kernel_for_slot(GptData *gpt, char slot)
@@ -53,32 +52,9 @@ GptEntry *fastboot_get_kernel_for_slot(GptData *gpt, char slot)
 	return mock_ptr_type(GptEntry *);
 }
 
-char get_slot_for_partition_name(GptEntry *e, char *partition_name)
-{
-	check_expected_ptr(e);
-	check_expected(partition_name);
-
-	return mock();
-}
-
-int GetEntryPriority(const GptEntry *e)
+bool IsAndroid(const GptEntry *e)
 {
 	check_expected_ptr(e);
 
 	return mock();
-}
-
-bool IsBootableEntry(const GptEntry *e)
-{
-	check_expected_ptr(e);
-
-	return mock();
-}
-
-GptEntry *gpt_find_partition(GptData *gpt, const char *partition_name)
-{
-	assert_ptr_equal(gpt, &test_gpt);
-	check_expected(partition_name);
-
-	return mock_ptr_type(GptEntry *);
 }

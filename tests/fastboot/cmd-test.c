@@ -265,6 +265,19 @@ bool gpt_foreach_partition(GptData *gpt, gpt_foreach_callback_t cb, void *ctx)
 
 #define GPT_FOREACH_WILL_END will_return(gpt_foreach_partition, NULL)
 
+int GetEntryPriority(const GptEntry *e)
+{
+	check_expected_ptr(e);
+
+	return mock();
+}
+
+/* Setup for GetEntryPriority mock */
+#define WILL_GET_PRIORITY(entry, priority) do { \
+	expect_value(GetEntryPriority, e, entry); \
+	will_return(GetEntryPriority, priority); \
+} while (0)
+
 int GptUpdateKernelWithEntry(GptData *gpt, GptEntry *e, uint32_t update_type)
 {
 	assert_ptr_equal(gpt, &test_gpt);
@@ -1342,20 +1355,23 @@ static void test_fb_cmd_oem_get_kernels(void **state)
 	GptEntry entries[4];
 
 	GPT_FOREACH_WILL_RETURN_ENTRY(&entries[0], 0, "boot_a");
-	WILL_GET_SLOT_FOR_PARTITION_NAME(&entries[0], "boot_a", 'a');
+	WILL_CHECK_ANDROID(&entries[0], true);
+	WILL_GET_SLOT_FOR_PARTITION_NAME("boot_a", 'a');
 	WILL_GET_PRIORITY(&entries[0], 5);
 	WILL_SEND_EXACT(fb, "INFOa:boot_a:prio=5");
 
 	GPT_FOREACH_WILL_RETURN_ENTRY(&entries[1], 1, "boot_b");
-	WILL_GET_SLOT_FOR_PARTITION_NAME(&entries[1], "boot_b", 'b');
+	WILL_CHECK_ANDROID(&entries[1], true);
+	WILL_GET_SLOT_FOR_PARTITION_NAME("boot_b", 'b');
 	WILL_GET_PRIORITY(&entries[1], 7);
 	WILL_SEND_EXACT(fb, "INFOb:boot_b:prio=7");
 
 	GPT_FOREACH_WILL_RETURN_ENTRY(&entries[2], 2, "super");
-	WILL_GET_SLOT_FOR_PARTITION_NAME(&entries[2], "super", 0);
+	WILL_CHECK_ANDROID(&entries[2], false);
 
-	GPT_FOREACH_WILL_RETURN_ENTRY(&entries[3], 4, "metadata_a");
-	WILL_GET_SLOT_FOR_PARTITION_NAME(&entries[3], "metadata_a", 0);
+	GPT_FOREACH_WILL_RETURN_ENTRY(&entries[3], 4, "vbmeta");
+	WILL_CHECK_ANDROID(&entries[3], true);
+	WILL_GET_SLOT_FOR_PARTITION_NAME("vbmeta", 0);
 
 	GPT_FOREACH_WILL_END;
 	WILL_SEND_PREFIX(fb, "OKAY");
