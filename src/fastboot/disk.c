@@ -306,7 +306,7 @@ GptEntry *fastboot_get_kernel_for_slot(GptData *gpt, char slot)
 
 	struct find_slot_ctx ctx = {
 		.target_entry = NULL,
-		.desired_slot = tolower(slot),
+		.desired_slot = slot,
 	};
 	if (gpt_foreach_partition(gpt, find_slot_callback, &ctx))
 		return ctx.target_entry;
