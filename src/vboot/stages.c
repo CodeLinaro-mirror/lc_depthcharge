@@ -25,6 +25,7 @@
 #include "base/cleanup_funcs.h"
 #include "base/timestamp.h"
 #include "base/vpd_util.h"
+#include "boot/android_pvmfw.h"
 #include "boot/commandline.h"
 #include "boot/multiboot.h"
 #include "debug/dev.h"
@@ -165,19 +166,17 @@ int vboot_select_and_boot_kernel(void)
 		.kernel_bootconfig_buffer = (char *)_kernel_end - KERNEL_CMDLINE_BUF_SIZE -
 					   KERNEL_BOOTCONFIG_BUF_SIZE,
 		.kernel_bootconfig_size = KERNEL_BOOTCONFIG_BUF_SIZE,
-
-#if CONFIG(ANDROID_PVMFW)
-		.pvmfw_buffer = _pvmfw_start,
-		.pvmfw_buffer_size = _pvmfw_end - _pvmfw_start,
-#else
-		/* Don't load pvmfw */
 		.pvmfw_buffer = NULL,
 		.pvmfw_buffer_size = 0,
-#endif /* CONFIG(ANDROID_PVMFW) */
 		/* Default to pvmfw not loaded */
-		.pvmfw_size = 0,
+		.pvmfw_out_size = 0,
 	};
 	VbootEcOps *ec = vboot_get_ec();
+
+	if (CONFIG(ANDROID_PVMFW) && lib_sysinfo.pvmfw_size != 0) {
+		kparams.pvmfw_buffer = (void *)(uintptr_t)phys_to_virt(lib_sysinfo.pvmfw);
+		kparams.pvmfw_buffer_size = lib_sysinfo.pvmfw_size;
+	}
 
 	// On x86 systems, inhibit power button pulse from EC.
 	if (CONFIG(ARCH_X86) && ec &&
