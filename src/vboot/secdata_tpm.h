@@ -38,7 +38,7 @@ uint32_t secdata_extend_kernel_pcr(struct vb2_context *ctx);
  *
  * @param boot_params	pointer where the buffer with pvmfw boot parameters
  *			will be set if successful. Caller is responsible for
- *			freeing the buffer.
+ *			erasing and freeing the buffer.
  * @param params_size	pointer where the size of the boot_params buffer will
  *			be set if successful.
  *

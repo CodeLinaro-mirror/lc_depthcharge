@@ -168,6 +168,7 @@ uint32_t secdata_extend_kernel_pcr(struct vb2_context *ctx)
 	return TPM_SUCCESS;
 }
 
+#if CONFIG(ANDROID_PVMFW)
 uint32_t secdata_get_pvmfw_params(void **boot_params, size_t *params_size)
 {
 	void *params = NULL;
@@ -217,3 +218,4 @@ fail:
 	free(params);
 	return ret;
 }
+#endif
