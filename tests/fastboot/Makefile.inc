@@ -44,3 +44,4 @@ vars-test-mocks += GptGetEntrySizeBytes
 vars-test-mocks += GptInit
 vars-test-mocks += GptNextKernelEntry
 vars-test-mocks += IsUnusedEntry
+vars-test-mocks += GetEntryTries

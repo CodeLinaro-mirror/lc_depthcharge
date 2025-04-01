@@ -354,40 +354,32 @@ fastboot_getvar_result_t fastboot_getvar(struct FastbootOps *fb, fastboot_var_t 
 					    GetEntrySuccessful(entry_for_index) ? "yes" : "no");
 		}
 		break;
-	}
-	case VAR_SLOT_RETRY_COUNT: {
-		if (!fastboot_disk_init(&disk))
+	case VAR_SLOT_RETRY_COUNT:
+		if (fastboot_disk_gpt_init(fb))
 			return STATE_DISK_ERROR;
 
 		if (arg != NULL) {
-			if (strlen(arg) != 1 || !isalpha(arg[0])) {
-				fastboot_disk_destroy(&disk);
+			if (strlen(arg) != 1 || !isalpha(arg[0]))
 				return STATE_UNKNOWN_VAR; // Invalid slot format
-			}
 			char slot_char_arg = tolower(arg[0]);
-			GptEntry *e = fastboot_get_kernel_for_slot(&disk, slot_char_arg);
-			if (e == NULL) {
-				fastboot_disk_destroy(&disk);
+			GptEntry *e = fastboot_get_kernel_for_slot(fb->gpt, slot_char_arg);
+			if (e == NULL)
 				return STATE_UNKNOWN_VAR;
-			}
 			used_len = snprintf(outbuf, *outbuf_len, "%d", GetEntryTries(e));
 		} else {
 			// Handling for "getvar all"; arg is NULL, use index.
 			GptEntry *entry_for_index = NULL;
 			char slot_char_for_index = 0;
 			fastboot_getvar_result_t find_slot_state =
-				fastboot_get_kernel_slot_by_index(&disk, index, &entry_for_index,
+				fastboot_get_kernel_slot_by_index(fb->gpt, index,
+								  &entry_for_index,
 								  &slot_char_for_index);
-			if (find_slot_state != STATE_OK) {
-				fastboot_disk_destroy(&disk);
+			if (find_slot_state != STATE_OK)
 				return find_slot_state;
-			}
 			used_len = snprintf(outbuf, *outbuf_len, "%c:%d", slot_char_for_index,
 					    GetEntryTries(entry_for_index));
 		}
-		fastboot_disk_destroy(&disk);
 		break;
-	}
 	case VAR_SLOT_UNBOOTABLE: {
 		if (!fastboot_disk_init(&disk))
 			return STATE_DISK_ERROR;
