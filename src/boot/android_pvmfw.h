@@ -3,6 +3,8 @@
 #ifndef _BOOT_ANDROID_PVMFW_H_
 #define _BOOT_ANDROID_PVMFW_H_
 
+#include <stddef.h>
+
 #define ANDROID_PVMFW_CFG_ALIGN 4096
 
 /**
