@@ -445,7 +445,57 @@ static void fastboot_cmd_set_active(struct FastbootOps *fb, const char *arg)
 out:
 	fastboot_disk_destroy(&disk);
 }
+static void fastboot_cmd_oem_set_priority(struct FastbootOps *fb,
+					  const char *arg)
+{
+	struct fastboot_disk disk;
+	char *partition_name;
+	int priority;
+	char *priority_str;
+	char *saveptr;
 
+	if (!fastboot_disk_init(&disk)) {
+		fastboot_fail(fb, "Failed to init disk");
+		return;
+	}
+
+	partition_name = strtok_r((char *)arg, ":", &saveptr);
+	if (!partition_name) {
+		fastboot_fail(fb, "Missing partition name");
+		goto out;
+	}
+
+	priority_str = strtok_r(NULL, ":", &saveptr);
+	if (!priority_str) {
+		fastboot_fail(fb, "Missing priority");
+		goto out;
+	}
+
+	priority = strtol(priority_str, NULL, 10);
+	if (priority < 0 || priority > 15) {
+
+		fastboot_fail(fb, "Invalid priority %0d (valid range is 0-15)", priority);
+		goto out;
+	}
+
+	GptEntry *e = fastboot_find_partition(&disk, partition_name);
+	if (!e) {
+		fastboot_fail(fb, "Could not find partition");
+		goto out;
+	}
+
+	int old_priority = disk.gpt->current_priority;
+	disk.gpt->current_priority = priority; // Set the priority in GptData
+	if (GptUpdateKernelWithEntry(disk.gpt, e, GPT_UPDATE_ENTRY_SET_PRIORITY) == GPT_SUCCESS) {
+		fastboot_succeed(fb);
+	} else {
+		disk.gpt->current_priority = old_priority; // Restore the old priority
+		fastboot_fail(fb, "Failed to set priority");
+	}
+
+out:
+	fastboot_disk_destroy(&disk);
+}
 #define CMD_ARGS(_name, _sep, _fn)                                             \
 	{                                                                      \
 		.name = _name, .has_args = true, .sep = _sep, .fn = _fn        \
@@ -469,6 +519,7 @@ struct fastboot_cmd fastboot_cmds[] = {
 	CMD_ARGS("oem bootconfig set", ' ', fastboot_cmd_oem_bootconfig_set),
 	CMD_NO_ARGS("oem bootconfig", fastboot_cmd_oem_bootconfig_get),
 	CMD_NO_ARGS("oem get-kernels", fastboot_cmd_oem_get_kernels),
+	CMD_ARGS("oem set-priority", ':', fastboot_cmd_oem_set_priority),
 	CMD_ARGS("reboot", '-', fastboot_cmd_reboot_to_recovery),
 	CMD_NO_ARGS("reboot", fastboot_cmd_reboot),
 	CMD_ARGS("set_active", ':', fastboot_cmd_set_active),
