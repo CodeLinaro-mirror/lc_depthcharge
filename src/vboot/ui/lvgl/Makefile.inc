@@ -17,7 +17,7 @@ depthcharge-y += layout.c
 # Set lv_conf.h directory
 CFLAGS += -DLV_CONF_PATH="$(LVGL_CONFIG_H)"
 
-$(obj)/lvgl/%.o: $(LVGL_PATH)/%.c
+$(obj)/lvgl/%.o: $(LVGL_PATH)/%.c $(LVGL_CONFIG_H)
 	@printf "    CC         $(subst $(obj)/,,$@)\n"
 	mkdir -p $(dir $@)
 	$(Q)$(XCC) -MMD $(CFLAGS) -c -o $@ $<
