@@ -133,19 +133,6 @@ int GetEntryTries(const GptEntry *e)
 	will_return(GetEntryTries, ret); \
 } while (0)
 
-bool IsBootableEntry(const GptEntry *e)
-{
-	check_expected_ptr(e);
-
-	return mock();
-}
-
-/* Setup for IsBootableEntry mock */
-#define WILL_CHECK_BOOTABLE_ENTRY(entry, ret) do { \
-	expect_value(IsBootableEntry, e, entry); \
-	will_return(IsBootableEntry, ret); \
-} while (0)
-
 const char *get_active_fw_id(void)
 {
 	return mock_ptr_type(char *);

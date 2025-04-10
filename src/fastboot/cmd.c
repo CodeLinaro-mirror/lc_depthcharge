@@ -600,129 +600,44 @@ static void fastboot_cmd_set_active(struct FastbootOps *fb, char *arg)
 		fastboot_succeed(fb);
 }
 
-static void fastboot_cmd_oem_set_priority(struct FastbootOps *fb,
-					  const char *arg)
+static void fastboot_cmd_oem_set_successful(struct FastbootOps *fb, char *arg)
 {
-	char *partition_name;
-	int priority;
-	char *priority_str;
-	char *priority_end = NULL;
-	char *saveptr;
+	const char *part_name = strsep(&arg, ":");
+	const char *state_str = strsep(&arg, ":");
+	uint8_t state;
+	GptEntry *entry;
+
+	if (!part_name || !state_str || arg != NULL) {
+		fastboot_fail(fb, "Invalid arguments. Use: oem "
+				  "set-successful:<partition>:<0|1>");
+		return;
+	}
+
+	/* Parse the state (0 or 1) */
+	state = state_str[0] - '0';
+	if (state >= 2 || state_str[1] != '\0') {
+		fastboot_fail(fb, "Invalid state value. Must be 0 or 1");
+		return;
+	}
 
 	if (fastboot_disk_gpt_init(fb))
 		return;
 
-	partition_name = strtok_r((char *)arg, ":", &saveptr);
-	if (!partition_name) {
-		fastboot_fail(fb, "Missing partition name");
-		return;
-	}
-
-	priority_str = strtok_r(NULL, ":", &saveptr);
-	if (!priority_str) {
-		fastboot_fail(fb, "Missing priority");
-		return;
-	}
-
-	priority = strtol(priority_str, &priority_end, 10);
-	if (priority < 0 || priority > 15 || priority_end == priority_str ||
-	    *priority_end != '\0') {
-		fastboot_fail(fb, "Invalid priority %0d (valid range is 0-15)", priority);
-		return;
-	}
-
-	GptEntry *e = gpt_find_partition(fb->gpt, partition_name);
-	if (!e) {
-		fastboot_fail(fb, "Could not find partition");
-		return;
-	}
-
-	int old_priority = fb->gpt->current_priority;
-	fb->gpt->current_priority = priority; // Set the priority in GptData
-	if (GptUpdateKernelWithEntry(fb->gpt, e, GPT_UPDATE_ENTRY_SET_PRIORITY) !=
-	    GPT_SUCCESS) {
-		fb->gpt->current_priority = old_priority; // Restore the old priority
-		fastboot_fail(fb, "Failed to set priority");
-		return;
-	}
-
-	if (!fastboot_save_gpt(fb))
-		fastboot_succeed(fb);
-	else
-		fastboot_fail(fb, "Failed to save GPT");
-}
-
-static void fastboot_cmd_oem_set_successful(struct FastbootOps *fb,
-					    const char *arg)
-{
-	const char *state_str = NULL;
-	int state = -1;
-	GptEntry *entry = NULL;
-
-	const int arg_len = strlen(arg);
-	char *arg_copy = malloc(arg_len+1);
-	if (!arg_copy) {
-		fastboot_fail(fb, "memory allocation failed");
-		return;
-	}
-	strcpy(arg_copy, arg);
-
-	char *last_colon = strrchr(arg_copy, ':');
-
-	/* Check if colon was found and is not the first or last character*/
-	if (!last_colon || last_colon == arg_copy ||
-	    last_colon == arg_copy + strlen(arg_copy) - 1) {
-		fastboot_fail(fb, "Invalid arguments. Use: oem "
-				  "set-successful:<partition>:<0|1>");
-		free(arg_copy);
-		return;
-	}
-
-	*last_colon = '\0'; /* Null-terminate arg_copy at the colon position */
-	state_str = last_colon + 1; /* Points into arg_copy, after the new null*/
-	/* Now arg_copy contains the partition name*/
-
-	size_t state_len = strlen(state_str);
-
-	/* Parse the state (0 or 1)*/
-	if (state_len == 1 && state_str[0] == '0') {
-		state = 0;
-	} else if (state_len == 1 && state_str[0] == '1') {
-		state = 1;
-	} else {
-		fastboot_fail(fb, "Invalid state value. Must be 0 or 1.");
-		free(arg_copy);
-		return;
-	}
-
-	if (fastboot_disk_gpt_init(fb)) {
-		free(arg_copy);
-		return;
-	}
-
-	entry = gpt_find_partition(fb->gpt, arg_copy);
+	entry = gpt_find_partition(fb->gpt, part_name);
 	if (!entry) {
-		fastboot_fail(fb, "Partition '%s' not found", arg_copy);
-		free(arg_copy);
+		fastboot_fail(fb, "Partition '%s' not found", part_name);
 		return;
 	}
 
-	/* Check if it's a bootable entry type*/
+	/* Check if it's a bootable entry type */
 	if (!IsBootableEntry(entry)) {
 		fastboot_fail(fb, "Partition '%s' is not a bootable entry type",
-			      arg_copy); /* Use arg_copy for message*/
-		free(arg_copy);
+			      part_name);
 		return;
 	}
-	free(arg_copy);
 
-	fb->gpt->current_successful = state;
-
-	if (GptUpdateKernelWithEntry(fb->gpt, entry, GPT_UPDATE_ENTRY_SUCCESSFUL) !=
-	    GPT_SUCCESS) {
-		fastboot_fail(fb, "Failed to update GPT entry");
-		return;
-	}
+	SetEntrySuccessful(entry, state);
+	GptModified(fb->gpt);
 
 	if (!fastboot_save_gpt(fb))
 		fastboot_succeed(fb);
@@ -757,7 +672,6 @@ struct fastboot_cmd fastboot_cmds[] = {
 	CMD_ARGS("oem read-ufs-descriptor", ':', fastboot_cmd_oem_read_ufs_descriptor),
 	CMD_ARGS("oem write-ufs-descriptor", ':', fastboot_cmd_oem_write_ufs_descriptor),
 	CMD_ARGS("oem set-successful", ':', fastboot_cmd_oem_set_successful),
-	CMD_ARGS("oem set-priority", ':', fastboot_cmd_oem_set_priority),
 	CMD_ARGS("reboot", '-', fastboot_cmd_reboot_to_target),
 	CMD_NO_ARGS("reboot", fastboot_cmd_reboot),
 	CMD_ARGS("set_active", ':', fastboot_cmd_set_active),
