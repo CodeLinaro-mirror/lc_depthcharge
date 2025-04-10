@@ -666,16 +666,13 @@ static void fastboot_cmd_oem_set_priority(struct FastbootOps *fb,
 out:
 	fastboot_disk_destroy(&disk);
 }
+
 static void fastboot_cmd_oem_set_successful(struct FastbootOps *fb,
 					    const char *arg)
 {
-	struct fastboot_disk disk;
 	const char *state_str = NULL;
 	int state = -1;
 	GptEntry *entry = NULL;
-
-	const Guid guid_chromeos_kernel = GPT_ENT_TYPE_CHROMEOS_KERNEL;
-	const Guid guid_android_vbmeta = GPT_ENT_TYPE_ANDROID_VBMETA;
 
 	const int arg_len = strlen(arg);
 	char *arg_copy = malloc(arg_len+1);
@@ -713,48 +710,39 @@ static void fastboot_cmd_oem_set_successful(struct FastbootOps *fb,
 		return;
 	}
 
-	if (!fastboot_disk_init(&disk)) {
-		fastboot_fail(fb, "Failed to init disk");
+	if (fastboot_disk_gpt_init(fb)) {
 		free(arg_copy);
 		return;
 	}
 
-	entry = fastboot_find_partition(&disk, arg_copy);
+	entry = gpt_find_partition(fb->gpt, arg_copy);
 	if (!entry) {
 		fastboot_fail(fb, "Partition '%s' not found", arg_copy);
-		goto cleanup;
+		free(arg_copy);
+		return;
 	}
 
 	/* Check if it's a bootable entry type*/
-	if (memcmp(&entry->type, &guid_chromeos_kernel, sizeof(Guid)) != 0 &&
-	    memcmp(&entry->type, &guid_android_vbmeta, sizeof(Guid)) != 0) {
+	if (!IsBootableEntry(entry)) {
 		fastboot_fail(fb, "Partition '%s' is not a bootable entry type",
 			      arg_copy); /* Use arg_copy for message*/
-		goto cleanup;
+		free(arg_copy);
+		return;
 	}
-
-	disk.gpt->current_successful = state;
-
-	int ret = GptUpdateKernelWithEntry(disk.gpt, entry,
-					   GPT_UPDATE_ENTRY_SUCCESSFUL);
-	if (ret != GPT_SUCCESS) {
-		fastboot_fail(fb, "Failed to update GPT entry");
-		goto cleanup;
-	}
-
-	if (WriteAndFreeGptData(disk.disk, disk.gpt)) {
-		disk.gpt = NULL;
-		fastboot_fail(fb, "Failed to write GPT data");
-	} else {
-		disk.gpt = NULL;
-		fastboot_succeed(fb);
-	}
-
-cleanup:
 	free(arg_copy);
-	if (disk.gpt) {
-		fastboot_disk_destroy(&disk);
+
+	fb->gpt->current_successful = state;
+
+	if (GptUpdateKernelWithEntry(fb->gpt, entry, GPT_UPDATE_ENTRY_SUCCESSFUL) !=
+	    GPT_SUCCESS) {
+		fastboot_fail(fb, "Failed to update GPT entry");
+		return;
 	}
+
+	if (!fastboot_save_gpt(fb))
+		fastboot_succeed(fb);
+	else
+		fastboot_fail(fb, "Failed to save GPT");
 }
 
 #define CMD_ARGS(_name, _sep, _fn)                                             \
@@ -782,9 +770,9 @@ struct fastboot_cmd fastboot_cmds[] = {
 	CMD_NO_ARGS("oem bootconfig", fastboot_cmd_oem_bootconfig_get),
 	CMD_NO_ARGS("oem get-kernels", fastboot_cmd_oem_get_kernels),
 	CMD_ARGS("oem set-priority", ':', fastboot_cmd_oem_set_priority),
-	CMD_ARGS("oem set-successful", ':', fastboot_cmd_oem_set_successful),
 	CMD_ARGS("oem read-ufs-descriptor", ':', fastboot_cmd_oem_read_ufs_descriptor),
 	CMD_ARGS("oem write-ufs-descriptor", ':', fastboot_cmd_oem_write_ufs_descriptor),
+	CMD_ARGS("oem set-successful", ':', fastboot_cmd_oem_set_successful),
 	CMD_ARGS("reboot", '-', fastboot_cmd_reboot_to_target),
 	CMD_NO_ARGS("reboot", fastboot_cmd_reboot),
 	CMD_ARGS("set_active", ':', fastboot_cmd_set_active),
