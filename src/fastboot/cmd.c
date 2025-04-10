@@ -16,6 +16,7 @@
  */
 
 #include <stdlib.h>
+#include <string.h>
 #include <vb2_android_misc.h>
 
 #include "fastboot/cmd.h"
@@ -496,6 +497,97 @@ static void fastboot_cmd_oem_set_priority(struct FastbootOps *fb,
 out:
 	fastboot_disk_destroy(&disk);
 }
+static void fastboot_cmd_oem_set_successful(struct FastbootOps *fb,
+					    const char *arg)
+{
+	struct fastboot_disk disk;
+	const char *state_str = NULL;
+	int state = -1;
+	GptEntry *entry = NULL;
+
+	const Guid guid_chromeos_kernel = GPT_ENT_TYPE_CHROMEOS_KERNEL;
+	const Guid guid_android_vbmeta = GPT_ENT_TYPE_ANDROID_VBMETA;
+
+	const int arg_len = strlen(arg);
+	char *arg_copy = malloc(arg_len+1);
+	if (!arg_copy) {
+		fastboot_fail(fb, "memory allocation failed");
+		return;
+	}
+	strcpy(arg_copy, arg);
+
+	char *last_colon = strrchr(arg_copy, ':');
+
+	/* Check if colon was found and is not the first or last character*/
+	if (!last_colon || last_colon == arg_copy ||
+	    last_colon == arg_copy + strlen(arg_copy) - 1) {
+		fastboot_fail(fb, "Invalid arguments. Use: oem "
+				  "set-successful:<partition>:<0|1>");
+		free(arg_copy);
+		return;
+	}
+
+	*last_colon = '\0'; /* Null-terminate arg_copy at the colon position */
+	state_str = last_colon + 1; /* Points into arg_copy, after the new null*/
+	/* Now arg_copy contains the partition name*/
+
+	size_t state_len = strlen(state_str);
+
+	/* Parse the state (0 or 1)*/
+	if (state_len == 1 && state_str[0] == '0') {
+		state = 0;
+	} else if (state_len == 1 && state_str[0] == '1') {
+		state = 1;
+	} else {
+		fastboot_fail(fb, "Invalid state value. Must be 0 or 1.");
+		free(arg_copy);
+		return;
+	}
+
+	if (!fastboot_disk_init(&disk)) {
+		fastboot_fail(fb, "Failed to init disk");
+		free(arg_copy);
+		return;
+	}
+
+	entry = fastboot_find_partition(&disk, arg_copy);
+	if (!entry) {
+		fastboot_fail(fb, "Partition '%s' not found", arg_copy);
+		goto cleanup;
+	}
+
+	/* Check if it's a bootable entry type*/
+	if (memcmp(&entry->type, &guid_chromeos_kernel, sizeof(Guid)) != 0 &&
+	    memcmp(&entry->type, &guid_android_vbmeta, sizeof(Guid)) != 0) {
+		fastboot_fail(fb, "Partition '%s' is not a bootable entry type",
+			      arg_copy); /* Use arg_copy for message*/
+		goto cleanup;
+	}
+
+	disk.gpt->current_successful = state;
+
+	int ret = GptUpdateKernelWithEntry(disk.gpt, entry,
+					   GPT_UPDATE_ENTRY_SUCCESSFUL);
+	if (ret != GPT_SUCCESS) {
+		fastboot_fail(fb, "Failed to update GPT entry");
+		goto cleanup;
+	}
+
+	if (WriteAndFreeGptData(disk.disk, disk.gpt)) {
+		disk.gpt = NULL;
+		fastboot_fail(fb, "Failed to write GPT data");
+	} else {
+		disk.gpt = NULL;
+		fastboot_succeed(fb);
+	}
+
+cleanup:
+	free(arg_copy);
+	if (disk.gpt) {
+		fastboot_disk_destroy(&disk);
+	}
+}
+
 #define CMD_ARGS(_name, _sep, _fn)                                             \
 	{                                                                      \
 		.name = _name, .has_args = true, .sep = _sep, .fn = _fn        \
@@ -520,6 +612,7 @@ struct fastboot_cmd fastboot_cmds[] = {
 	CMD_NO_ARGS("oem bootconfig", fastboot_cmd_oem_bootconfig_get),
 	CMD_NO_ARGS("oem get-kernels", fastboot_cmd_oem_get_kernels),
 	CMD_ARGS("oem set-priority", ':', fastboot_cmd_oem_set_priority),
+	CMD_ARGS("oem set-successful", ':', fastboot_cmd_oem_set_successful),
 	CMD_ARGS("reboot", '-', fastboot_cmd_reboot_to_recovery),
 	CMD_NO_ARGS("reboot", fastboot_cmd_reboot),
 	CMD_ARGS("set_active", ':', fastboot_cmd_set_active),
