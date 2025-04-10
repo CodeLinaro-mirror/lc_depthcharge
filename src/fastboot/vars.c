@@ -215,7 +215,7 @@ fastboot_getvar_result_t fastboot_getvar(fastboot_var_t var, const char *arg,
 		if (!fastboot_disk_init(&disk))
 			return STATE_DISK_ERROR;
 		bool partition_found = false;
-		if (fastboot_has_slot(&disk, arg, strlen(arg), &partition_found)) {
+		if (fastboot_has_slot(&disk, arg, arg_len, &partition_found)) {
 			used_len = snprintf(outbuf, *outbuf_len, "yes");
 		} else if (partition_found) {
 			used_len = snprintf(outbuf, *outbuf_len, "no");
@@ -244,7 +244,7 @@ fastboot_getvar_result_t fastboot_getvar(fastboot_var_t var, const char *arg,
 		if (!fastboot_disk_init(&disk))
 			return STATE_DISK_ERROR;
 
-		if (strlen(arg) != 1 || !isalpha(arg[0])) {
+		if (arg_len != 1 || !isalpha(arg[0])) {
 			fastboot_disk_destroy(&disk);
 			return STATE_UNKNOWN_VAR;
 		}
@@ -267,7 +267,7 @@ fastboot_getvar_result_t fastboot_getvar(fastboot_var_t var, const char *arg,
 		if (!fastboot_disk_init(&disk))
 			return STATE_DISK_ERROR;
 
-		if (strlen(arg) != 1 || !isalpha(arg[0])) {
+		if (arg_len != 1 || !isalpha(arg[0])) {
 			fastboot_disk_destroy(&disk);
 			return STATE_UNKNOWN_VAR;
 		}
