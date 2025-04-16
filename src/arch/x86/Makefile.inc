@@ -14,4 +14,5 @@
 depthcharge-y += boot.c
 depthcharge-y += gcc.c
 depthcharge-y += physmem.c
+depthcharge-y += boot_asm.S
 depthcharge-$(CONFIG_KERNEL_ZIMAGE) += zimage.c
