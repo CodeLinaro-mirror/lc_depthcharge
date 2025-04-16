@@ -125,21 +125,6 @@ void fastboot_cmd_getvar(struct FastbootOps *fb, const char *args)
 	fastboot_fail(fb, "Unknown variable");
 }
 
-/* Helper function to get partition type string based on name */
-static const char *get_partition_type_string(const char *name)
-{
-	if (!strcmp(name, "OEM")) {
-		return "ext4";
-	} else if (!strcmp(name, "EFI-SYSTEM")) {
-		return "vfat";
-	} else if (!strcmp(name, "metadata")) {
-		return "ext4";
-	} else if (!strcmp(name, "userdata")) {
-		return "ext4";
-	}
-	return "raw"; /* All other partitions are "raw" type*/
-}
-
 static fastboot_getvar_result_t fastboot_get_partition_name_by_index(
 					GptData *gpt,
 					size_t index, char **name, GptEntry **part)
@@ -183,6 +168,21 @@ static bool is_entry_unbootable(GptEntry *entry)
 {
 	return !IsBootableEntry(entry) || GetEntryPriority(entry) == 0 ||
 		(!GetEntrySuccessful(entry) &&  GetEntryTries(entry) == 0);
+}
+
+/* Helper function to get partition type string based on name */
+static const char *get_partition_type_string(const char *name)
+{
+	if (!strcmp(name, "OEM"))
+		return "ext4";
+	else if (!strcmp(name, "EFI-SYSTEM"))
+		return "vfat";
+	else if (!strcmp(name, "metadata"))
+		return "ext4";
+	else if (!strcmp(name, "userdata"))
+		return "ext4";
+
+	return "raw"; /* All other partitions are "raw" type*/
 }
 
 fastboot_getvar_result_t fastboot_getvar(struct FastbootOps *fb, fastboot_var_t var,
@@ -250,6 +250,31 @@ fastboot_getvar_result_t fastboot_getvar(struct FastbootOps *fb, fastboot_var_t 
 		used_len += snprintf(outbuf, *outbuf_len, "0x%llx",
 				     GptGetEntrySizeBytes(fb->gpt, part));
 		break;
+	case VAR_PARTITION_TYPE: {
+		const char *type_str;
+		if (fastboot_disk_gpt_init_no_fail(fb))
+			return STATE_DISK_ERROR;
+
+		if (arg != NULL) {
+			part = gpt_find_partition(fb->gpt, arg);
+			if (part == NULL)
+				return STATE_UNKNOWN_VAR;
+			type_str = get_partition_type_string(arg);
+		} else {
+			fastboot_getvar_result_t state =
+				fastboot_get_partition_name_by_index(fb->gpt, index, &name,
+								     &part);
+			if (state != STATE_OK)
+				return state;
+			used_len = snprintf(outbuf, *outbuf_len, "%s:", name);
+			outbuf += used_len;
+			*outbuf_len -= used_len;
+			type_str = get_partition_type_string(name);
+			free(name);
+		}
+		used_len += snprintf(outbuf, *outbuf_len, "%s", type_str);
+		break;
+	}
 	case VAR_PRODUCT: {
 		struct cb_mainboard *mainboard =
 			phys_to_virt(lib_sysinfo.cb_mainboard);
