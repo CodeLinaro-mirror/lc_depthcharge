@@ -84,6 +84,9 @@ SECTIONS
 
 	.bss : {
 		*(.ttb_buffer)
+		*(.bss.pml4e)
+		*(.bss.main_page_table)
+		*(.bss.extra_page_table)
 
 		_bss = .;
 		*(.sbss)
