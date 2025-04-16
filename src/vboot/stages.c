@@ -233,7 +233,11 @@ int vboot_select_and_boot_kernel(void)
 		goto fail;
 
 	if (kparams.boot_command == VB2_BOOT_CMD_BOOTLOADER_BOOT &&
-	    vboot_in_developer()) {
+	    (vboot_in_developer() ||
+	     vb2api_gbb_get_flags(ctx) & VB2_GBB_FLAG_FORCE_UNLOCK_FASTBOOT)) {
+		/* Initialize USB if we are in normal mode */
+		if (vboot_get_context()->boot_mode == VB2_BOOT_MODE_NORMAL)
+			dc_usb_initialize();
 		if (CONFIG(FASTBOOT_IN_PROD))
 			fastboot();
 		else
