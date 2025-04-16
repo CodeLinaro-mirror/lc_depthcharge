@@ -181,8 +181,36 @@ static int get_slot_var(fastboot_var_t var, GptEntry *e, char *outbuf, size_t le
 	}
 }
 
+/* Helper function to get partition type string based on name */
+static const char *get_partition_type_string(const char *name)
+{
+	if (!strcmp(name, "OEM"))
+		return "ext4";
+	else if (!strcmp(name, "EFI-SYSTEM"))
+		return "vfat";
+	else if (!strcmp(name, "metadata"))
+		return "ext4";
+	else if (!strcmp(name, "userdata"))
+		return "ext4";
+
+	return "raw"; /* All other partitions are "raw" type*/
+}
+
+static int get_partition_var(fastboot_var_t var, GptData *gpt, GptEntry *e,
+			     const char *part_name, char *outbuf, size_t len)
+{
+	switch (var) {
+	case VAR_PARTITION_SIZE:
+		return snprintf(outbuf, len, "0x%llx", GptGetEntrySizeBytes(gpt, e));
+	case VAR_PARTITION_TYPE:
+		return snprintf(outbuf, len, "%s", get_partition_type_string(part_name));
+	default:
+		die("Incorrect %s() argument: %u\n", __func__, var);
+	}
+}
+
 fastboot_getvar_result_t fastboot_getvar(struct FastbootOps *fb, fastboot_var_t var,
-					 const char *arg, size_t index, char *outbuf,
+					 char *arg, size_t index, char *outbuf,
 					 size_t *outbuf_len)
 {
 	fastboot_getvar_result_t state;
@@ -227,10 +255,12 @@ fastboot_getvar_result_t fastboot_getvar(struct FastbootOps *fb, fastboot_var_t 
 		used_len = snprintf(outbuf, *outbuf_len, "no");
 		break;
 	case VAR_PARTITION_SIZE:
+	case VAR_PARTITION_TYPE:
 		if (fastboot_disk_gpt_init_no_fail(fb))
 			return STATE_DISK_ERROR;
 		if (arg != NULL) {
-			part = gpt_find_partition(fb->gpt, arg);
+			name = arg;
+			part = gpt_find_partition(fb->gpt, name);
 			if (part == NULL)
 				return STATE_UNKNOWN_VAR;
 		} else {
@@ -241,37 +271,11 @@ fastboot_getvar_result_t fastboot_getvar(struct FastbootOps *fb, fastboot_var_t 
 			used_len = snprintf(outbuf, *outbuf_len, "%s:", name);
 			outbuf += used_len;
 			*outbuf_len -= used_len;
-			free(name);
 		}
-
-		used_len += snprintf(outbuf, *outbuf_len, "0x%llx",
-				     GptGetEntrySizeBytes(fb->gpt, part));
-		break;
-	case VAR_PARTITION_TYPE: {
-		const char *type_str;
-		if (fastboot_disk_gpt_init_no_fail(fb))
-			return STATE_DISK_ERROR;
-
-		if (arg != NULL) {
-			part = gpt_find_partition(fb->gpt, arg);
-			if (part == NULL)
-				return STATE_UNKNOWN_VAR;
-			type_str = get_partition_type_string(arg);
-		} else {
-			fastboot_getvar_result_t state =
-				fastboot_get_partition_name_by_index(fb->gpt, index, &name,
-								     &part);
-			if (state != STATE_OK)
-				return state;
-			used_len = snprintf(outbuf, *outbuf_len, "%s:", name);
-			outbuf += used_len;
-			*outbuf_len -= used_len;
-			type_str = get_partition_type_string(name);
+		used_len += get_partition_var(var, fb->gpt, part, name, outbuf, *outbuf_len);
+		if (name != arg)
 			free(name);
-		}
-		used_len += snprintf(outbuf, *outbuf_len, "%s", type_str);
 		break;
-	}
 	case VAR_PRODUCT: {
 		struct cb_mainboard *mainboard =
 			phys_to_virt(lib_sysinfo.cb_mainboard);

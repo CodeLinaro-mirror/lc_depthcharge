@@ -60,6 +60,6 @@ typedef struct fastboot_getvar_info {
 
 void fastboot_cmd_getvar(struct FastbootOps *fb, char *args);
 fastboot_getvar_result_t fastboot_getvar(struct FastbootOps *fb, fastboot_var_t var,
-					 const char *arg, size_t index, char *outbuf,
+					 char *arg, size_t index, char *outbuf,
 					 size_t *outbuf_len);
 #endif // __FASTBOOT_VARS_H__
