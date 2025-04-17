@@ -35,6 +35,13 @@ int fastboot_disk_gpt_init(struct FastbootOps *fb)
 	return 0;
 }
 
+int fastboot_disk_init(struct FastbootOps *fb)
+{
+	fb->disk = &test_disk;
+
+	return 0;
+}
+
 GptEntry *fastboot_get_kernel_for_slot(GptData *gpt, char slot)
 {
 	assert_ptr_equal(gpt, &test_gpt);

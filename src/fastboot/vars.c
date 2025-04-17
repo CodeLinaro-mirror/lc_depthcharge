@@ -418,19 +418,11 @@ fastboot_getvar_result_t fastboot_getvar(struct FastbootOps *fb, fastboot_var_t 
 		break;
 	}
 	case VAR_LOGICAL_BLOCK_SIZE:
-		if (!fastboot_disk_init(&disk))
+		if (fastboot_disk_init(fb))
 			return STATE_DISK_ERROR;
 
-		if (!disk.disk) {
-			fastboot_disk_destroy(&disk);
-			return STATE_DISK_ERROR;
-		}
-
-		used_len = snprintf(outbuf, *outbuf_len, "0x%x", disk.disk->block_size);
-
-		fastboot_disk_destroy(&disk);
+		used_len = snprintf(outbuf, *outbuf_len, "0x%x", fb->disk->block_size);
 		break;
-
 	case VAR_SERIALNO: {
 		u32 vpd_size;
 		const void *vpd_data = vpd_find("serial_number", NULL, NULL, &vpd_size);
