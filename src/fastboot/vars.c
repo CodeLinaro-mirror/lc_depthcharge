@@ -47,6 +47,8 @@ static fastboot_getvar_info_t fastboot_vars[] = {
 	VAR_ARGS("slot-successful", ':', VAR_SLOT_SUCCESSFUL),
 	VAR_ARGS("slot-retry-count", ':', VAR_SLOT_RETRY_COUNT),
 	VAR_NO_ARGS("logical-block-size", VAR_LOGICAL_BLOCK_SIZE),
+	/* erase-block-size is the same as logical-block-size, added for completeness*/
+	VAR_NO_ARGS("erase-block-size", VAR_LOGICAL_BLOCK_SIZE),
 	{.name = NULL},
 };
 
