@@ -46,6 +46,7 @@ static fastboot_getvar_info_t fastboot_vars[] = {
 	VAR_NO_ARGS("slot-suffixes", VAR_SLOT_SUFFIXES),
 	VAR_ARGS("slot-successful", ':', VAR_SLOT_SUCCESSFUL),
 	VAR_ARGS("slot-retry-count", ':', VAR_SLOT_RETRY_COUNT),
+	VAR_ARGS("slot-unbootable", ':', VAR_SLOT_UNBOOTABLE),
 	VAR_NO_ARGS("logical-block-size", VAR_LOGICAL_BLOCK_SIZE),
 	/* erase-block-size is the same as logical-block-size, added for completeness*/
 	VAR_NO_ARGS("erase-block-size", VAR_LOGICAL_BLOCK_SIZE),
@@ -340,6 +341,32 @@ fastboot_getvar_result_t fastboot_getvar(fastboot_var_t var, const char *arg,
 
 		used_len = snprintf(outbuf, *outbuf_len, "%d", GetEntryTries(e));
 
+		fastboot_disk_destroy(&disk);
+		break;
+	}
+	case VAR_SLOT_UNBOOTABLE: {
+		if (!fastboot_disk_init(&disk))
+			return STATE_DISK_ERROR;
+
+		if (strlen(arg) != 1 || !isalpha(arg[0])) {
+			fastboot_disk_destroy(&disk);
+			return STATE_UNKNOWN_VAR;
+		}
+
+		char slot = tolower(arg[0]);
+
+		GptEntry *e = fastboot_get_kernel_for_slot(&disk, slot);
+		if (e == NULL) {
+			fastboot_disk_destroy(&disk);
+			return STATE_UNKNOWN_VAR;
+		}
+
+		// Check if the entry is unbootable based on type, priority,
+		// successful flag, and tries count.
+		bool is_unbootable = !IsBootableEntry(e) || GetEntryPriority(e) == 0 ||
+				     (!GetEntrySuccessful(e) && GetEntryTries(e) == 0);
+
+		used_len = snprintf(outbuf, *outbuf_len, is_unbootable ? "yes" : "no");
 		fastboot_disk_destroy(&disk);
 		break;
 	}
