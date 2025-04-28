@@ -39,4 +39,10 @@ void setup_test_fb(void);
 	will_return(get_slot_for_partition_name, slot); \
 } while (0)
 
+/* Setup for GetEntryPriority mock */
+#define WILL_GET_PRIORITY(entry, priority) do { \
+	expect_value(GetEntryPriority, e, entry); \
+	will_return(GetEntryPriority, priority); \
+} while (0)
+
 #endif /* _FASTBOOT_COMMON_MOCKS_H */

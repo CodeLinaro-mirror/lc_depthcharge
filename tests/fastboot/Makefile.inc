@@ -17,6 +17,7 @@ fastboot-test-common-config += UIP_CONF_LL_80211=0
 fastboot-test-common-config += UIP_CONF_ICMP6=0
 fastboot-test-common-srcs += tests/fastboot/fastboot_common_mocks.c
 fastboot-test-common-srcs += src/fastboot/fastboot.c
+fastboot-test-common-mocks += GetEntryPriority
 
 # cmd-test
 $(call copy-test,fastboot-test-common,cmd-test)
@@ -25,7 +26,6 @@ cmd-test-srcs += tests/fastboot/cmd-test.c
 cmd-test-srcs += src/base/android_misc.c
 cmd-test-srcs += src/fastboot/cmd.c
 cmd-test-mocks += GptUpdateKernelWithEntry
-cmd-test-mocks += GetEntryPriority
 cmd-test-mocks += android_misc_bcb_write
 cmd-test-mocks += android_misc_bcb_read
 cmd-test-mocks += android_misc_oem_cmdline_write
@@ -45,3 +45,4 @@ vars-test-mocks += GptInit
 vars-test-mocks += GptNextKernelEntry
 vars-test-mocks += IsUnusedEntry
 vars-test-mocks += GetEntryTries
+vars-test-mocks += IsBootableEntry

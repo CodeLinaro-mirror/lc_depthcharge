@@ -57,3 +57,10 @@ char get_slot_for_partition_name(GptEntry *e, char *partition_name)
 
 	return mock();
 }
+
+int GetEntryPriority(const GptEntry *e)
+{
+	check_expected_ptr(e);
+
+	return mock();
+}
