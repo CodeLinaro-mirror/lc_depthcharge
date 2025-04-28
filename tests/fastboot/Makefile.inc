@@ -17,6 +17,7 @@ fastboot-test-common-config += UIP_CONF_LL_80211=0
 fastboot-test-common-config += UIP_CONF_ICMP6=0
 fastboot-test-common-srcs += tests/fastboot/fastboot_common_mocks.c
 fastboot-test-common-srcs += src/fastboot/fastboot.c
+fastboot-test-common-mocks += GetEntryPriority
 fastboot-test-common-mocks += IsAndroid
 
 # cmd-test
@@ -44,3 +45,4 @@ vars-test-mocks += GptGetEntrySizeBytes
 vars-test-mocks += GptInit
 vars-test-mocks += GptNextKernelEntry
 vars-test-mocks += GetEntryTries
+vars-test-mocks += IsBootableEntry
