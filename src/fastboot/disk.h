@@ -60,4 +60,5 @@ int fastboot_get_number_of_partitions(struct fastboot_disk *disk);
 char *fastboot_get_entry_name(GptEntry *e);
 GptEntry *fastboot_get_partition(struct fastboot_disk *disk, unsigned int index);
 GptEntry *fastboot_find_partition(struct fastboot_disk *disk, const char *partition_name);
+bool partition_has_suffix(const char *partition_name);
 #endif // __FASTBOOT_DISK_H__
