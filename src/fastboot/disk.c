@@ -399,33 +399,50 @@ void fastboot_slots_disable_all(struct fastboot_disk *disk)
 	fastboot_disk_foreach_partition(disk, disable_all_callback, disk->gpt);
 }
 
+bool partition_has_suffix(const char *partition_name)
+{
+	size_t partition_name_len = strlen(partition_name);
+	return 	partition_name_len > 2 &&
+		(partition_name[partition_name_len - 2] == '-' ||
+		 partition_name[partition_name_len - 2] == '_') &&
+		isalpha(partition_name[partition_name_len - 1]);
+}
+
 struct has_slot_ctx {
 	const char *name;
 	int len;
 	bool partition_found;
 	bool has_slot;
+	bool name_has_suffix;
 };
 
-static bool has_slot_callback(void *ctx, int index, GptEntry *e,
-			      char *partition_name)
+static bool has_slot_callback(void *ctx, int index, GptEntry *e, char *partition_name)
 {
 	struct has_slot_ctx *hctx = (struct has_slot_ctx *)ctx;
 	size_t partition_name_len = strlen(partition_name);
 
-	bool has_slot = partition_name_len > 2 &&
-		(partition_name[partition_name_len - 2] == '-' ||
-                partition_name[partition_name_len - 2] == '_') &&
-                isalpha(partition_name[partition_name_len - 1]);
+	bool current_partition_has_suffix = partition_has_suffix(partition_name);
 
-	if ((has_slot && (partition_name_len != hctx->len + 2)) ||
-		(!has_slot && (partition_name_len != hctx->len)))
-		return false; // wrong length
-
-	if(strncmp(partition_name, hctx->name, hctx->len) == 0) {
-		FB_DEBUG("%s, %s: names match!", partition_name, hctx->name);
+	/* Exact match (e.g., input "metadata", found "metadata" OR input
+	"boot_a", found "boot_a") */
+	if (partition_name_len == hctx->len &&
+	    strncmp(partition_name, hctx->name, hctx->len) == 0) {
+		FB_DEBUG("%s: exact match found for input %s!\n", partition_name, hctx->name);
 		hctx->partition_found = true;
-		hctx->has_slot = has_slot;
-		return true; // Stop iteration
+		hctx->has_slot = current_partition_has_suffix;
+		return true;
+	}
+
+	/* Match base name with slot suffix (e.g., input "boot", found "boot_a")  */
+	if (current_partition_has_suffix && !hctx->name_has_suffix) {
+		if (partition_name_len == hctx->len + 2 &&
+		    strncmp(partition_name, hctx->name, hctx->len) == 0) {
+			FB_DEBUG("%s: match with suffix found for base name %s!\n",
+				 partition_name, hctx->name);
+			hctx->partition_found = true;
+			hctx->has_slot = true;
+			return true;
+		}
 	}
 	return false;
 }
@@ -438,6 +455,7 @@ bool fastboot_has_slot(struct fastboot_disk *disk, const char *name, int len,
 		.len = len,
 		.partition_found = false,
 		.has_slot = false,
+		.name_has_suffix = partition_has_suffix(name),
 	};
 	fastboot_disk_foreach_partition(disk, has_slot_callback, &ctx);
 	*partition_found = ctx.partition_found;
