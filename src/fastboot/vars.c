@@ -136,6 +136,24 @@ static const char *get_partition_type_string(const char *name)
 	return "raw"; /* All other partitions are "raw" type*/
 }
 
+static fastboot_getvar_result_t fastboot_get_partition_name_by_index(
+					struct fastboot_disk *disk,
+					size_t index, char **name, GptEntry **part)
+{
+	if (fastboot_get_number_of_partitions(disk) <= index)
+		return STATE_LAST;
+
+	*part = fastboot_get_partition(disk, index);
+	if (*part == NULL)
+		return STATE_TRY_NEXT;
+
+	*name = fastboot_get_entry_name(*part);
+	if (*name == NULL)
+		return STATE_TRY_NEXT;
+
+	return STATE_OK;
+}
+
 fastboot_getvar_result_t fastboot_getvar(fastboot_var_t var, const char *arg,
 					 size_t index, char *outbuf,
 					 size_t *outbuf_len)
@@ -189,23 +207,18 @@ fastboot_getvar_result_t fastboot_getvar(fastboot_var_t var, const char *arg,
 			return STATE_DISK_ERROR;
 		if (arg != NULL) {
 			part = fastboot_find_partition(&disk, arg);
-			if (part == NULL)
+			if (part == NULL) {
+				fastboot_disk_destroy(&disk);
 				return STATE_UNKNOWN_VAR;
+			}
 		} else {
 			char *name;
-
-			/* There is no more partitions to get */
-			if (fastboot_get_number_of_partitions(&disk) <= index)
-				return STATE_LAST;
-
-			part = fastboot_get_partition(&disk, index);
-			if (part == NULL)
-				return STATE_TRY_NEXT;
-
-			name = fastboot_get_entry_name(part);
-			if (name == NULL)
-				return STATE_TRY_NEXT;
-
+			fastboot_getvar_result_t state =
+			    	fastboot_get_partition_name_by_index(&disk, index, &name, &part);
+			if (state != STATE_OK || name == NULL) {
+				fastboot_disk_destroy(&disk);
+				return state;
+			}
 			used_len = snprintf(outbuf, *outbuf_len, "%s:", name);
 			outbuf += used_len;
 			*outbuf_len -= used_len;
@@ -285,18 +298,31 @@ fastboot_getvar_result_t fastboot_getvar(fastboot_var_t var, const char *arg,
 		used_len = snprintf(outbuf, *outbuf_len, "0.4");
 		break;
 	case VAR_HAS_SLOT: {
+		bool has_slot = false;
 		if (!fastboot_disk_init(&disk))
 			return STATE_DISK_ERROR;
-		bool partition_found = false;
-		if (fastboot_has_slot(&disk, arg, strlen(arg), &partition_found)) {
-			used_len = snprintf(outbuf, *outbuf_len, "yes");
-		} else if (partition_found) {
-			used_len = snprintf(outbuf, *outbuf_len, "no");
-                } else {
-			fastboot_disk_destroy(&disk);
-			return STATE_UNKNOWN_VAR;
+		if (arg != NULL) {
+			bool partition_found = false;
+			has_slot = fastboot_has_slot(&disk, arg, strlen(arg), &partition_found);
+			if (!partition_found) {
+				fastboot_disk_destroy(&disk);
+				return STATE_UNKNOWN_VAR;
+			}
+			used_len = snprintf(outbuf, *outbuf_len, has_slot ? "yes" : "no");
+		} else {
+			char *name = NULL;
+			GptEntry *part = NULL;
+			fastboot_getvar_result_t state =
+				fastboot_get_partition_name_by_index(&disk, index, &name, &part);
+			if (state != STATE_OK || name == NULL) {
+				fastboot_disk_destroy(&disk);
+				return state;
+			}
+			has_slot = partition_has_suffix(name);
+			used_len = snprintf(outbuf, *outbuf_len, "%s:%s", name,
+					    has_slot ? "yes" : "no");
+			free(name);
 		}
-
 		fastboot_disk_destroy(&disk);
 		break;
 	}
