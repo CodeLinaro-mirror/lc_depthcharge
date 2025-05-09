@@ -20,12 +20,13 @@
 #include <vb2_android_misc.h>
 #include <vb2_gpt.h>
 
+#include "base/gpt.h"
 #include "drivers/storage/ufs.h"
-#include "net/uip.h"
 #include "fastboot/cmd.h"
 #include "fastboot/disk.h"
 #include "fastboot/fastboot.h"
 #include "fastboot/vars.h"
+#include "net/uip.h"
 
 static int parse_hex(const char *str, uint32_t *ret)
 {
@@ -502,7 +503,7 @@ static void fastboot_cmd_oem_get_kernels(struct FastbootOps *fb, const char *arg
 	struct get_kernels_ctx ctx = {
 		.fb = fb,
 	};
-	fastboot_disk_foreach_partition(&disk, get_kernels_cb, &ctx);
+	gpt_foreach_partition(disk.gpt, get_kernels_cb, &ctx);
 	fastboot_disk_destroy(&disk);
 	fastboot_succeed(fb);
 }

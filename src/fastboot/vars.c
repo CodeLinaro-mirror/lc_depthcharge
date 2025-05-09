@@ -20,6 +20,7 @@
 #include <string.h>
 #include <sysinfo.h>
 
+#include "base/gpt.h"
 #include "fastboot/disk.h"
 #include "fastboot/fastboot.h"
 #include "fastboot/vars.h"
@@ -247,9 +248,8 @@ fastboot_getvar_result_t fastboot_getvar(fastboot_var_t var, const char *arg,
 		if (!fastboot_disk_init(&disk))
 			return STATE_DISK_ERROR;
 		if (arg != NULL) {
-			part = fastboot_find_partition(&disk, arg);
-			if (part == NULL) {
-				fastboot_disk_destroy(&disk);
+			part = gpt_find_partition(disk.gpt, arg);
+			if (part == NULL)
 				return STATE_UNKNOWN_VAR;
 			}
 		} else {
@@ -266,45 +266,18 @@ fastboot_getvar_result_t fastboot_getvar(fastboot_var_t var, const char *arg,
 			free(name);
 		}
 
-		used_len += snprintf(outbuf, *outbuf_len, "0x%llx",
-				     GptGetEntrySizeBytes(disk.gpt, part));
-		fastboot_disk_destroy(&disk);
-		break;
-	}
-	case VAR_PARTITION_TYPE: {
-		const char *type_str = "raw";
-		GptEntry *part = NULL;
-		int arg_len = strlen(arg);
-		if (!fastboot_disk_init(&disk))
-			return STATE_DISK_ERROR;
-
-		if (arg != NULL) {
-			if (arg_len == 0) {
-				fastboot_disk_destroy(&disk);
-				return STATE_UNKNOWN_VAR;
-			}
-			type_str = get_partition_type_string(arg);
-			used_len = snprintf(outbuf, *outbuf_len, "%s", type_str);
-
-		} else {
-			char *name;
-
-			if (fastboot_get_number_of_partitions(&disk) <= index) {
-				/* There are no more partitions to get */
-				fastboot_disk_destroy(&disk);
+			/* There is no more partitions to get */
+			if (gpt_get_number_of_partitions(disk.gpt) <= index)
 				return STATE_LAST;
 			}
 
-			part = fastboot_get_partition(&disk, index);
-			if (part == NULL || IsUnusedEntry(part)) {
-				/* Skip invalid/unused entries */
-				fastboot_disk_destroy(&disk);
+			part = gpt_get_partition(disk.gpt, index);
+			if (part == NULL)
 				return STATE_TRY_NEXT;
 			}
 
-			name = fastboot_get_entry_name(part);
-			if (name == NULL) {
-				fastboot_disk_destroy(&disk);
+			name = gpt_get_entry_name(part);
+			if (name == NULL)
 				return STATE_TRY_NEXT;
 			}
 

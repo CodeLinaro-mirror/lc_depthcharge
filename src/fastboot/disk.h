@@ -31,22 +31,14 @@ struct fastboot_disk {
 
 #define FASTBOOT_MAX_SLOTS 2
 
-// Returns true to stop iteration, false to continue.
-typedef bool (*disk_foreach_callback_t)(void *ctx, int index, GptEntry *e,
-					char *partition_name);
-
 bool fastboot_disk_init(struct fastboot_disk *disk);
 void fastboot_disk_destroy(struct fastboot_disk *disk);
-bool fastboot_disk_foreach_partition(struct fastboot_disk *disk,
-				     disk_foreach_callback_t cb, void *ctx);
 void fastboot_write_raw(struct FastbootOps *fb, struct fastboot_disk *disk,
 			const uint64_t start_block, const uint64_t block_count,
 			void *data, size_t data_len);
 void fastboot_write(struct FastbootOps *fb, struct fastboot_disk *disk,
 		    const char *partition_name, const uint64_t blocks_offset,
 		    void *data, size_t data_len);
-bool fastboot_read(struct fastboot_disk *disk, const char *partition_name, void *data,
-		   size_t data_len, size_t offset);
 void fastboot_erase(struct FastbootOps *fb, struct fastboot_disk *disk,
 		    const char *partition_name);
 int fastboot_get_slot_count(struct fastboot_disk *disk);
@@ -56,10 +48,5 @@ bool fastboot_has_slot(struct fastboot_disk *disk, const char *name, int len,
 			bool *partition_found);
 char *fastboot_get_slot_suffixes(struct fastboot_disk *disk);
 void fastboot_slots_disable_all(struct fastboot_disk *disk);
-int fastboot_get_number_of_partitions(struct fastboot_disk *disk);
-/* Returns partition name as an ASCII string. Caller should free the data. */
-char *fastboot_get_entry_name(GptEntry *e);
-GptEntry *fastboot_get_partition(struct fastboot_disk *disk, unsigned int index);
-GptEntry *fastboot_find_partition(struct fastboot_disk *disk, const char *partition_name);
-bool partition_has_suffix(const char *partition_name);
+
 #endif // __FASTBOOT_DISK_H__
