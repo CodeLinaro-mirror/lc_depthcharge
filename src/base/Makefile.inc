@@ -21,6 +21,7 @@ depthcharge-y += init_funcs.c
 depthcharge-y += late_init_funcs.c
 depthcharge-y += list.c
 depthcharge-y += ranges.c
+depthcharge-y += sparse.c
 depthcharge-y += state_machine.c
 depthcharge-y += timestamp.c
 depthcharge-y += vpd_decode.c
