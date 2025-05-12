@@ -28,42 +28,62 @@
 #include "fastboot/disk.h"
 #include "fastboot/fastboot.h"
 
-bool fastboot_disk_init(struct fastboot_disk *disk)
+int fastboot_disk_init(struct FastbootOps *fb)
 {
-	memset(disk, 0, sizeof(*disk));
 	struct list_node *devs;
+
+	/* Disk already initialized */
+	if (fb->disk)
+		return 0;
+
 	uint32_t count = get_all_bdevs(BLOCKDEV_FIXED, &devs);
 
 	if (count != 1) {
-		FB_DEBUG("wrong number of fixed disks (found %d, wanted 1)\n",
-			 count);
-		return false;
+		fastboot_fail(fb, "wrong number of fixed disks (found %d, wanted 1)\n",
+			      count);
+		return -1;
 	}
 
 	BlockDev *bdev = NULL;
 	list_for_each(bdev, *devs, list_node)
 	{
-		disk->disk = bdev;
+		fb->disk = bdev;
 		break;
 	}
 
-	if (disk->disk == NULL) {
-		FB_DEBUG("No disk found\n");
-		return false;
+	if (fb->disk == NULL) {
+		fastboot_fail(fb, "No disk found");
+		return -1;
 	}
 
-	FB_DEBUG("Using disk '%s'\n", disk->disk->name);
+	FB_DEBUG("Using disk '%s'\n", fb->disk->name);
 
-	disk->gpt = alloc_gpt(disk->disk);
-	if (disk->gpt == NULL) {
-		return false;
-	}
-	return true;
+	return 0;
 }
 
-void fastboot_disk_destroy(struct fastboot_disk *disk)
+int fastboot_disk_gpt_init(struct FastbootOps *fb)
 {
-	free_gpt(disk->disk, disk->gpt);
+	if (fastboot_disk_init(fb))
+		return -1;
+
+	/* GPT already initialized */
+	if (fb->gpt)
+		return 0;
+
+	fb->gpt = alloc_gpt(fb->disk);
+	if (fb->gpt == NULL) {
+		fastboot_fail(fb, "Invalid GPT on the disk");
+		return -1;
+	}
+	return 0;
+}
+
+int fastboot_save_gpt(struct FastbootOps *fb)
+{
+	int ret = free_gpt(fb->disk, fb->gpt);
+	fb->gpt = NULL;
+
+	return ret;
 }
 
 void fastboot_write_raw(struct FastbootOps *fb, struct fastboot_disk *disk,
@@ -104,11 +124,13 @@ void fastboot_write_raw(struct FastbootOps *fb, struct fastboot_disk *disk,
 	return;
 }
 
-void fastboot_write(struct FastbootOps *fb, struct fastboot_disk *disk,
-		    const char *partition_name, const uint64_t blocks_offset,
-		    void *data, size_t data_len)
+void fastboot_write(struct FastbootOps *fb, const char *partition_name,
+		    const uint64_t blocks_offset, void *data, size_t data_len)
 {
-	switch (gpt_write_partition(disk->disk, disk->gpt, partition_name, blocks_offset,
+	if (fastboot_disk_gpt_init(fb))
+		return;
+
+	switch (gpt_write_partition(fb->disk, fb->gpt, partition_name, blocks_offset,
 				    data, data_len)) {
 	case GPT_IO_SUCCESS:
 		fastboot_succeed(fb);
@@ -134,7 +156,7 @@ void fastboot_write(struct FastbootOps *fb, struct fastboot_disk *disk,
 		break;
 	case GPT_IO_SPARSE_BLOCK_SIZE_NOT_ALIGNED:
 		fastboot_fail(fb, "Sparse block size not aligned to block size of %u",
-			      disk->disk->block_size);
+			      fb->disk->block_size);
 		break;
 	case GPT_IO_SPARSE_WRONG_CHUNK_SIZE:
 		fastboot_fail(fb, "Sparse chunk size is wrong");
@@ -147,10 +169,12 @@ void fastboot_write(struct FastbootOps *fb, struct fastboot_disk *disk,
 	}
 }
 
-void fastboot_erase(struct FastbootOps *fb, struct fastboot_disk *disk,
-		    const char *partition_name)
+void fastboot_erase(struct FastbootOps *fb, const char *partition_name)
 {
-	switch (gpt_erase_partition(disk->disk, disk->gpt, partition_name)) {
+	if (fastboot_disk_gpt_init(fb))
+		return;
+
+	switch (gpt_erase_partition(fb->disk, fb->gpt, partition_name)) {
 	case GPT_IO_SUCCESS:
 		fastboot_succeed(fb);
 		break;
@@ -222,12 +246,12 @@ static bool check_kernel_partition_info(void *ctx, int index, GptEntry *e,
 
 	return false;
 }
-int fastboot_get_slot_count(struct fastboot_disk *disk)
+int fastboot_get_slot_count(GptData *gpt)
 {
 	struct kpi_ctx result = {
 		.kernel_count = 0,
 	};
-	gpt_foreach_partition(disk->gpt, check_kernel_partition_info, &result);
+	gpt_foreach_partition(gpt, check_kernel_partition_info, &result);
 	return result.kernel_count;
 }
 
@@ -251,7 +275,7 @@ static bool find_slot_callback(void *ctx, int index, GptEntry *e,
 	return false;
 }
 
-GptEntry *fastboot_get_kernel_for_slot(struct fastboot_disk *disk, char slot)
+GptEntry *fastboot_get_kernel_for_slot(GptData *gpt, char slot)
 {
 
 	if (slot < 'a') {
@@ -261,7 +285,7 @@ GptEntry *fastboot_get_kernel_for_slot(struct fastboot_disk *disk, char slot)
 		.target_entry = NULL,
 		.desired_slot = slot,
 	};
-	if (gpt_foreach_partition(disk->gpt, find_slot_callback, &ctx))
+	if (gpt_foreach_partition(gpt, find_slot_callback, &ctx))
 		return ctx.target_entry;
 
 	return NULL;
@@ -276,9 +300,9 @@ static bool disable_all_callback(void *ctx, int index, GptEntry *e,
 	GptUpdateKernelWithEntry((GptData *)ctx, e, GPT_UPDATE_ENTRY_INVALID);
 	return false;
 }
-void fastboot_slots_disable_all(struct fastboot_disk *disk)
+void fastboot_slots_disable_all(GptData *gpt)
 {
-	gpt_foreach_partition(disk->gpt, disable_all_callback, disk->gpt);
+	gpt_foreach_partition(gpt, disable_all_callback, gpt);
 }
 
 bool partition_has_suffix(const char *partition_name)

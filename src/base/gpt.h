@@ -29,8 +29,8 @@
  */
 GptData *alloc_gpt(BlockDev *bdev);
 
-/* Free the allocated GPT pointer. */
-void free_gpt(BlockDev *bdev, GptData *gpt);
+/* Free the allocated GPT pointer. Returns 0 if GPT was updated successfully. */
+int free_gpt(BlockDev *bdev, GptData *gpt);
 
 /*
  * Write a GUID to a string.
