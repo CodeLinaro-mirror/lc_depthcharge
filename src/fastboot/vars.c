@@ -154,6 +154,37 @@ static fastboot_getvar_result_t fastboot_get_partition_name_by_index(
 	return STATE_OK;
 }
 
+/* Iterates through GPT entries to find the 'index'-th kernel partition. */
+static fastboot_getvar_result_t fastboot_get_kernel_slot_by_index(
+	struct fastboot_disk *disk, size_t index, GptEntry **out_entry,
+	char *out_slot_char)
+{
+	GptHeader *h = (GptHeader *)disk->gpt->primary_header;
+	int kernel_slot_idx_counter = 0;
+
+	for (int i = 0; i < h->number_of_entries; i++) {
+		GptEntry *current_entry =
+			(GptEntry *)&disk->gpt->primary_entries[i * h->size_of_entry];
+
+		if (IsUnusedEntry(current_entry))
+			continue;
+		char *name = fastboot_get_entry_name(current_entry);
+		if (name == NULL)
+			continue;
+		char slot_char = get_slot_for_partition_name(current_entry, name);
+		free(name);
+		if (slot_char == 0)
+			continue;
+		if (kernel_slot_idx_counter == index) {
+			*out_entry = current_entry;
+			*out_slot_char = slot_char;
+			return STATE_OK; /* Found the 'index'-th kernel slot */
+		}
+		kernel_slot_idx_counter++;
+	}
+	return STATE_LAST;
+}
+
 fastboot_getvar_result_t fastboot_getvar(fastboot_var_t var, const char *arg,
 					 size_t index, char *outbuf,
 					 size_t *outbuf_len)
@@ -343,22 +374,33 @@ fastboot_getvar_result_t fastboot_getvar(fastboot_var_t var, const char *arg,
 		if (!fastboot_disk_init(&disk))
 			return STATE_DISK_ERROR;
 
-		if (strlen(arg) != 1 || !isalpha(arg[0])) {
-			fastboot_disk_destroy(&disk);
-			return STATE_UNKNOWN_VAR;
+		if (arg != NULL) {
+			if (strlen(arg) != 1 || !isalpha(arg[0])) {
+				fastboot_disk_destroy(&disk);
+				return STATE_UNKNOWN_VAR;
+			}
+			char slot_char_arg = tolower(arg[0]);
+			GptEntry *e = fastboot_get_kernel_for_slot(&disk, slot_char_arg);
+			if (e == NULL) {
+				fastboot_disk_destroy(&disk);
+				return STATE_UNKNOWN_VAR;
+			}
+			used_len = snprintf(outbuf, *outbuf_len, "%s",
+					    GetEntrySuccessful(e) ? "yes" : "no");
+		} else {
+			/* Handling for "getvar all" - arg is NULL, use index. */
+			GptEntry *entry_for_index = NULL;
+			char slot_char_for_index = 0;
+			fastboot_getvar_result_t find_slot_state =
+				fastboot_get_kernel_slot_by_index(&disk, index, &entry_for_index,
+					&slot_char_for_index);
+			if (find_slot_state != STATE_OK) {
+				fastboot_disk_destroy(&disk);
+				return find_slot_state;
+			}
+			used_len = snprintf(outbuf, *outbuf_len, "%c:%s", slot_char_for_index,
+					    GetEntrySuccessful(entry_for_index) ? "yes" : "no");
 		}
-
-		char slot = tolower(arg[0]);
-
-		GptEntry *e = fastboot_get_kernel_for_slot(&disk, slot);
-		if (e == NULL) {
-			fastboot_disk_destroy(&disk);
-			return STATE_UNKNOWN_VAR;
-		}
-
-		used_len = snprintf(outbuf, *outbuf_len,
-				    GetEntrySuccessful(e) ? "yes" : "no");
-
 		fastboot_disk_destroy(&disk);
 		break;
 	}
