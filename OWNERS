@@ -1,8 +1,6 @@
 include chromiumos/owners:v1:/firmware/OWNERS.android
+include chromiumos/owners:v1:/bots/OWNERS.copybot #{LAST_RESORT_SUGGESTION}
 
 hungte@chromium.org
 knoxchiou@chromium.org
 yidilin@chromium.org
-
-# ChromeOS Prod
-chromeos-ci-prod@chromeos-bot.iam.gserviceaccount.com #{LAST_RESORT_SUGGESTION}
