@@ -39,6 +39,9 @@ bool fastboot_disk_init(struct fastboot_disk *disk);
 void fastboot_disk_destroy(struct fastboot_disk *disk);
 bool fastboot_disk_foreach_partition(struct fastboot_disk *disk,
 				     disk_foreach_callback_t cb, void *ctx);
+void fastboot_write_raw(struct FastbootOps *fb, struct fastboot_disk *disk,
+			const uint64_t start_block, const uint64_t block_count,
+			void *data, size_t data_len);
 void fastboot_write(struct FastbootOps *fb, struct fastboot_disk *disk,
 		    const char *partition_name, void *data, size_t data_len, size_t offset);
 bool fastboot_read(struct fastboot_disk *disk, const char *partition_name, void *data,
