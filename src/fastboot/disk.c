@@ -181,6 +181,44 @@ bool fastboot_read(struct fastboot_disk *disk, const char *partition_name, void 
 	return true;
 }
 
+void fastboot_write_raw(struct FastbootOps *fb, struct fastboot_disk *disk,
+			const uint64_t start_block, const uint64_t block_count,
+			void *data, size_t data_len)
+{
+	if (start_block >= disk->disk->block_count ||
+	    block_count > disk->disk->block_count - start_block) {
+		fastboot_fail(fb, "Region [start: %llu, size: %llu] can't fit in %llu blocks\n",
+			      start_block, block_count, disk->disk->block_count);
+		return;
+	}
+
+	if (data_len % disk->disk->block_size) {
+		fastboot_fail(fb, "Buffer size %zu not block size aligned %u\n", data_len,
+			      disk->disk->block_size);
+		return;
+	}
+
+	uint64_t data_blocks = data_len / disk->disk->block_size;
+	if (data_blocks > block_count) {
+		fastboot_fail(fb, "Image is too big");
+		return;
+	}
+
+	FB_DEBUG("Writing LBA %llu to %llu, num blocks = %llu, data "
+		 "len = %zu, block size = %u\n",
+		 start_block, start_block + data_blocks,
+		 data_blocks, data_len, disk->disk->block_size);
+	lba_t blocks_written = disk->disk->ops.write(
+		&disk->disk->ops, start_block, data_blocks, data);
+	if (blocks_written != data_blocks) {
+		fastboot_fail(fb, "Failed to write");
+		return;
+	}
+
+	fastboot_succeed(fb);
+	return;
+}
+
 void fastboot_write(struct FastbootOps *fb, struct fastboot_disk *disk,
 		    const char *partition_name, void *data, size_t data_len, size_t offset)
 {
@@ -210,34 +248,16 @@ void fastboot_write(struct FastbootOps *fb, struct fastboot_disk *disk,
 		return;
 	}
 
-	if (data_len % disk->disk->block_size) {
-		fastboot_fail(fb, "Buffer size %zu not block size aligned %u\n", data_len,
-			      disk->disk->block_size);
-		return;
-	}
-
 	uint64_t space = GptGetEntrySizeLba(e);
-	uint64_t data_blocks = data_len / disk->disk->block_size;
-	uint64_t data_blocks_offset = offset / disk->disk->block_size;
-	if (data_blocks + data_blocks_offset > space) {
-		fastboot_fail(fb, "Image is too big");
+	uint64_t blocks_offset = offset / disk->disk->block_size;
+	if (blocks_offset >= space) {
+		fastboot_fail(fb, "Offset larger than partition size (%llu >= %llu)\n",
+			      blocks_offset, space);
 		return;
 	}
 
-	FB_DEBUG("Writing LBA %llu to %llu, num blocks = %llu, data "
-		 "len = %zu, block size = %u\n",
-		 e->starting_lba + data_blocks_offset,
-		 e->starting_lba + data_blocks_offset + data_blocks,
-		 data_blocks, data_len, disk->disk->block_size);
-	lba_t blocks_written = disk->disk->ops.write(
-		&disk->disk->ops, e->starting_lba + data_blocks_offset, data_blocks, data);
-	if (blocks_written != data_blocks) {
-		fastboot_fail(fb, "Failed to write");
-		return;
-	}
-
-	fastboot_succeed(fb);
-	return;
+	fastboot_write_raw(fb, disk, e->starting_lba + blocks_offset, space - blocks_offset,
+			   data, data_len);
 }
 
 void fastboot_erase(struct FastbootOps *fb, struct fastboot_disk *disk,

@@ -34,6 +34,8 @@
 	}
 static fastboot_getvar_info_t fastboot_vars[] = {
 	VAR_NO_ARGS("current-slot", VAR_CURRENT_SLOT),
+	VAR_NO_ARGS("Disk-block-count", VAR_DISK_BLOCK_COUNT),
+	VAR_NO_ARGS("Disk-block-size", VAR_DISK_BLOCK_SIZE),
 	VAR_NO_ARGS("max-download-size", VAR_DOWNLOAD_SIZE),
 	VAR_NO_ARGS("is-userspace", VAR_IS_USERSPACE),
 	VAR_ARGS("partition-size", ':', VAR_PARTITION_SIZE),
@@ -160,6 +162,18 @@ fastboot_getvar_result_t fastboot_getvar(fastboot_var_t var, const char *arg,
 
 		used_len = snprintf(outbuf, *outbuf_len, "%s", suffix);
 		free(suffix);
+		break;
+	case VAR_DISK_BLOCK_COUNT:
+		if (!fastboot_disk_init(&disk))
+			return STATE_DISK_ERROR;
+		used_len += snprintf(outbuf, *outbuf_len, "0x%llx", disk.disk->block_count);
+		fastboot_disk_destroy(&disk);
+		break;
+	case VAR_DISK_BLOCK_SIZE:
+		if (!fastboot_disk_init(&disk))
+			return STATE_DISK_ERROR;
+		used_len += snprintf(outbuf, *outbuf_len, "0x%x", disk.disk->block_size);
+		fastboot_disk_destroy(&disk);
 		break;
 	case VAR_DOWNLOAD_SIZE:
 		used_len = snprintf(outbuf, *outbuf_len, "%llu",

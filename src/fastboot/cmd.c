@@ -76,21 +76,50 @@ static void fastboot_cmd_download(struct FastbootOps *fb, const char *arg)
 	fastboot_data(fb, size);
 }
 
+#define FASTBOOT_RAW_WRITE_ARG "raw-sector:"
+#define FASTBOOT_RAW_WRITE_ARG_LEN (sizeof(FASTBOOT_RAW_WRITE_ARG) - 1)
+
 static void fastboot_cmd_flash(struct FastbootOps *fb, const char *arg)
 {
+	struct fastboot_disk disk;
 	if (!fb->has_download) {
 		fastboot_fail(fb, "No data staged to flash");
 		return;
 	}
 
-	struct fastboot_disk disk;
+	uint64_t data_len;
+	void *data = fastboot_get_download_buffer(fb, &data_len);
+
+	if (!strncmp(arg, FASTBOOT_RAW_WRITE_ARG, FASTBOOT_RAW_WRITE_ARG_LEN)) {
+		long long int offset = strtoll(arg + FASTBOOT_RAW_WRITE_ARG_LEN, NULL, 0);
+		if (offset < 0) {
+			fastboot_fail(fb, "Offset cannot be negative");
+			return;
+		}
+		disk.disk = NULL;
+		fastboot_disk_init(&disk);
+		/* Ignore errors with GPT as we don't need that for raw write */
+		if (disk.disk == NULL) {
+			fastboot_fail(fb, "Failed to init disk");
+			return;
+		}
+		/* Free GPT, so we will not overwrite GPT if it was modified by raw write */
+		fastboot_disk_destroy(&disk);
+		if (disk.disk->block_count <= offset) {
+			fastboot_fail(fb, "Offset cannot be larger then disk block count");
+			return;
+		}
+
+		fastboot_write_raw(fb, &disk, (uint64_t)offset, disk.disk->block_count - offset,
+				   data, (uint32_t)data_len);
+		return;
+	}
+
 	if (!fastboot_disk_init(&disk)) {
 		fastboot_fail(fb, "Failed to init disk");
 		return;
 	}
 
-	uint64_t data_len;
-	void *data = fastboot_get_download_buffer(fb, &data_len);
 	fastboot_write(fb, &disk, arg, data, (uint32_t)data_len, 0);
 	fastboot_disk_destroy(&disk);
 }
