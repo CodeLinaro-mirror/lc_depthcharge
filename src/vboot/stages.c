@@ -20,17 +20,21 @@
 #include <stdint.h>
 #include <vb2_api.h>
 
+#include "base/android_misc.h"
 #include "base/cleanup_funcs.h"
+#include "base/gpt.h"
 #include "base/timestamp.h"
 #include "base/vpd_util.h"
 #include "boot/android_pvmfw.h"
 #include "boot/commandline.h"
 #include "boot/multiboot.h"
+#include "debug/dev.h"
 #include "drivers/ec/vboot_ec.h"
 #include "drivers/flash/flash.h"
 #include "drivers/power/power.h"
 #include "drivers/storage/blockdev.h"
 #include "drivers/bus/usb/usb.h"
+#include "fastboot/fastboot.h"
 #include "image/fmap.h"
 #include "image/symbols.h"
 #include "vboot/boot.h"
@@ -80,6 +84,32 @@ int vboot_check_enable_usb(void)
 			break;
 	}
 	return 0;
+}
+
+static vb2_error_t start_fastboot_if_requested(struct vb2_context *ctx)
+{
+	/* Early enter fastboot only in developer mode */
+	if (ctx->boot_mode != VB2_BOOT_MODE_DEVELOPER)
+		return VB2_SUCCESS;
+
+	enum android_misc_bcb_command cmd;
+	ListNode *devs;
+	get_all_bdevs(BLOCKDEV_FIXED, &devs);
+
+	BlockDev *bdev = NULL;
+	list_for_each(bdev, *devs, list_node)
+	{
+		GptData *gpt = alloc_gpt(bdev);
+		if (gpt == NULL)
+			continue;
+		cmd = android_misc_get_bcb_command(bdev, gpt);
+		free_gpt(bdev, gpt);
+
+		if (cmd == MISC_BCB_BOOTLOADER_BOOT)
+			fastboot();
+	}
+
+	return VB2_SUCCESS;
 }
 
 static int x86_ec_powerbtn_cleanup_func(struct CleanupFunc *c, CleanupType t)
@@ -200,6 +230,10 @@ int vboot_select_and_boot_kernel(void)
 		goto fail;
 
 	res = vb2api_kernel_phase2(ctx);
+	if (res != VB2_SUCCESS)
+		goto fail;
+
+	res = start_fastboot_if_requested(ctx);
 	if (res != VB2_SUCCESS)
 		goto fail;
 
