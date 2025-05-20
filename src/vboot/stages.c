@@ -22,7 +22,9 @@
 #include <vb2_api.h>
 
 #include "arch/post_code.h"
+#include "base/android_misc.h"
 #include "base/cleanup_funcs.h"
+#include "base/gpt.h"
 #include "base/timestamp.h"
 #include "base/vpd_util.h"
 #include "boot/android_pvmfw.h"
@@ -91,6 +93,32 @@ int vboot_check_enable_usb(void)
 		break;
 	}
 	return 0;
+}
+
+static vb2_error_t start_fastboot_if_requested(struct vb2_context *ctx)
+{
+	/* Early enter fastboot only in developer mode */
+	if (ctx->boot_mode != VB2_BOOT_MODE_DEVELOPER)
+		return VB2_SUCCESS;
+
+	enum android_misc_bcb_command cmd;
+	struct list_node *devs;
+	get_all_bdevs(BLOCKDEV_FIXED, &devs);
+
+	BlockDev *bdev = NULL;
+	list_for_each(bdev, *devs, list_node)
+	{
+		GptData *gpt = alloc_gpt(bdev);
+		if (gpt == NULL)
+			continue;
+		cmd = android_misc_get_bcb_command(bdev, gpt);
+		free_gpt(bdev, gpt);
+
+		if (cmd == MISC_BCB_BOOTLOADER_BOOT)
+			fastboot();
+	}
+
+	return VB2_SUCCESS;
 }
 
 static int x86_ec_powerbtn_cleanup_func(struct CleanupFunc *c, CleanupType t)
@@ -225,33 +253,15 @@ int vboot_select_and_boot_kernel(void)
 	if (res != VB2_SUCCESS)
 		goto fail;
 
+	res = start_fastboot_if_requested(ctx);
+	if (res != VB2_SUCCESS)
+		goto fail;
+
 	post_code(POST_CODE_KERNEL_LOAD);
 
 	res = vboot_select_and_load_kernel(ctx, &kparams);
 	if (res != VB2_SUCCESS)
 		goto fail;
-
-	if (kparams.boot_command == VB2_BOOT_CMD_BOOTLOADER_BOOT &&
-	    (vboot_in_developer() ||
-	     vb2api_gbb_get_flags(ctx) & VB2_GBB_FLAG_FORCE_UNLOCK_FASTBOOT)) {
-		/* Initialize USB if we are in normal mode */
-		if (vboot_get_context()->boot_mode == VB2_BOOT_MODE_NORMAL)
-			dc_usb_initialize();
-		if (CONFIG(FASTBOOT_IN_PROD))
-			fastboot();
-		else
-			dc_dev_fastboot();
-		/*
-		 * Fastboot is usually used to modify data on internal disk.
-		 * Kernel partition priority and its contents are likely
-		 * different. Reboot the device to fully restart the boot
-		 * process. In theory this could be optimized by simply
-		 * re-running this function from beginning, but let's go with
-		 * the safer approach, at least for the time being.
-		 */
-		res = VB2_REQUEST_REBOOT;
-		goto fail;
-	}
 
 	if (!vboot_in_recovery()) {
 		uint32_t tpm_rv = secdata_extend_kernel_pcr(ctx);
