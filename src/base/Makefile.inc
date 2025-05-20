@@ -11,6 +11,7 @@
 ## GNU General Public License for more details.
 ##
 
+depthcharge-y += android_misc.c
 depthcharge-y += cleanup_funcs.c
 depthcharge-y += device_tree.c
 depthcharge-y += dt_set_macs.c
