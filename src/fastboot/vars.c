@@ -23,6 +23,7 @@
 #include "fastboot/disk.h"
 #include "fastboot/fastboot.h"
 #include "fastboot/vars.h"
+#include "base/vpd_util.h"
 #include "vboot/firmware_id.h"
 
 #define VAR_ARGS(_name, _sep, _var)                                            \
@@ -54,6 +55,7 @@ static fastboot_getvar_info_t fastboot_vars[] = {
 	VAR_NO_ARGS("logical-block-size", VAR_LOGICAL_BLOCK_SIZE),
 	/* erase-block-size is the same as logical-block-size, added for completeness*/
 	VAR_NO_ARGS("erase-block-size", VAR_LOGICAL_BLOCK_SIZE),
+	VAR_NO_ARGS("serialno", VAR_SERIALNO),
 	{.name = NULL},
 };
 
@@ -504,6 +506,17 @@ fastboot_getvar_result_t fastboot_getvar(fastboot_var_t var, const char *arg,
 		fastboot_disk_destroy(&disk);
 		break;
 
+	case VAR_SERIALNO: {
+		u32 vpd_size;
+		const void *vpd_data = vpd_find("serial_number", NULL, NULL, &vpd_size);
+
+		if (vpd_data && vpd_size > 0)
+			used_len = snprintf(outbuf, *outbuf_len, "%.*s",
+					       (int)vpd_size, (const char *)vpd_data);
+		else
+			used_len = snprintf(outbuf, *outbuf_len, "unknown");
+		break;
+	}
 	default:
 		return STATE_UNKNOWN_VAR;
 	}
