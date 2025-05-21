@@ -154,6 +154,25 @@ const char *get_active_fw_id(void)
 /* Setup for get_active_fw_id mock */
 #define WILL_GET_ACTIVE_FW_ID(ret) will_return(get_active_fw_id, ret)
 
+const u8 *vpd_find(const char *key, const u8 *blob, u32 *offset, u32 *size)
+{
+	check_expected(key);
+	assert_ptr_equal(blob, NULL);
+	assert_ptr_equal(offset, NULL);
+
+	*size = mock();
+
+	return mock_ptr_type(u8 *);
+}
+
+/* Setup for vpd_find mock */
+#define WILL_VPD_FIND(k, len, ret) do { \
+	expect_string(vpd_find, key, k); \
+	will_return(vpd_find, len); \
+	will_return(vpd_find, ret); \
+} while (0)
+
+
 /* Reset mock data (for use before each test) */
 static int setup(void **state)
 {
@@ -755,6 +774,18 @@ static void test_fb_getvar_version_bootloader(void **state)
 	TEST_FASTBOOT_GETVAR_OK(VAR_VERSION_BOOTLOADER, "", "unknown");
 }
 
+static void test_fb_getvar_serialno(void **state)
+{
+	WILL_VPD_FIND("serial_number", 4, "123456789");
+	TEST_FASTBOOT_GETVAR_OK(VAR_SERIALNO, "", "1234");
+
+	WILL_VPD_FIND("serial_number", 0, "123456789");
+	TEST_FASTBOOT_GETVAR_OK(VAR_SERIALNO, "", "unknown");
+
+	WILL_VPD_FIND("serial_number", 2, NULL);
+	TEST_FASTBOOT_GETVAR_OK(VAR_SERIALNO, "", "unknown");
+}
+
 /* fastboot_cmd_getvar tests */
 
 static void test_fb_cmd_getvar_current_slot(void **state)
@@ -935,6 +966,17 @@ static void test_fb_cmd_getvar_version_bootloader(void **state)
 	fastboot_cmd_getvar(fb, "version-bootloader");
 }
 
+static void test_fb_cmd_getvar_serialno(void **state)
+{
+	struct FastbootOps *fb = *state;
+
+	WILL_VPD_FIND("serial_number", 4, "123456789");
+
+	WILL_SEND_EXACT(fb, "OKAY1234");
+
+	fastboot_cmd_getvar(fb, "serialno");
+}
+
 /* fastboot_cmd_getvar fail tests */
 static void test_fb_cmd_getvar_get_fail(void **state)
 {
@@ -1076,6 +1118,9 @@ static void test_fb_cmd_getvar_all(void **state)
 	/* Setup for version-bootloader */
 	WILL_GET_ACTIVE_FW_ID("fwversion");
 
+	/* Setup for serialno */
+	WILL_VPD_FIND("serial_number", 4, "123456789");
+
 	fastboot_cmd_getvar(fb, "all");
 
 	if (packets_list.next == NULL)
@@ -1110,6 +1155,7 @@ static void test_fb_cmd_getvar_all(void **state)
 	check_fb_cmd_getvar_all_contains("INFOslot-suffixes:a,b");
 	check_fb_cmd_getvar_all_contains("INFOlogical-block-size:0x1000");
 	check_fb_cmd_getvar_all_contains("INFOversion-bootloader:fwversion");
+	check_fb_cmd_getvar_all_contains("INFOserialno:1234");
 
 	list_for_each(node, packets_list, list_node) {
 		fail_msg("Unexpected message: \"%s\"", node->msg);
@@ -1170,6 +1216,9 @@ static void test_fb_cmd_getvar_all_fail_get_var(void **state)
 	/* Setup for version-bootloader */
 	WILL_GET_ACTIVE_FW_ID("fwversion");
 
+	/* Setup for serialno */
+	WILL_VPD_FIND("serial_number", 4, "123456789");
+
 	fastboot_cmd_getvar(fb, "all");
 
 	if (packets_list.next == NULL)
@@ -1203,6 +1252,7 @@ static void test_fb_cmd_getvar_all_fail_get_var(void **state)
 	check_fb_cmd_getvar_all_contains("INFOslot-suffixes:a,b");
 	check_fb_cmd_getvar_all_contains("INFOlogical-block-size:0x1000");
 	check_fb_cmd_getvar_all_contains("INFOversion-bootloader:fwversion");
+	check_fb_cmd_getvar_all_contains("INFOserialno:1234");
 
 	list_for_each(node, packets_list, list_node) {
 		fail_msg("Unexpected message: \"%s\"", node->msg);
@@ -1262,6 +1312,7 @@ int main(void)
 		TEST(test_fb_getvar_slot_unbootable_at_index_no_name),
 		TEST(test_fb_getvar_slot_unbootable_at_index_last),
 		TEST(test_fb_getvar_version_bootloader),
+		TEST(test_fb_getvar_serialno),
 		TEST(test_fb_cmd_getvar_current_slot),
 		TEST(test_fb_cmd_getvar_download_size),
 		TEST(test_fb_cmd_getvar_is_userspace),
@@ -1277,6 +1328,7 @@ int main(void)
 		TEST(test_fb_cmd_getvar_logical_block_size),
 		TEST(test_fb_cmd_getvar_slot_unbootable),
 		TEST(test_fb_cmd_getvar_version_bootloader),
+		TEST(test_fb_cmd_getvar_serialno),
 		TEST(test_fb_cmd_getvar_get_fail),
 		TEST(test_fb_cmd_getvar_no_args),
 		TEST(test_fb_cmd_getvar_prefix_of_var_name),
