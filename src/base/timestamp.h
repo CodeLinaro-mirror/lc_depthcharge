@@ -17,6 +17,9 @@
 #include <stdint.h>
 
 enum timestamp_id {
+	/* 500+ reserved for vendorcode extensions (500-600: google/chromeos) */
+	TS_FIRMWARE_SPLASH_RENDERED = 557,
+
 	// Depthcharge entry IDs start at 1000.
 	TS_START = 1000,
 
