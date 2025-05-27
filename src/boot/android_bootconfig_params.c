@@ -25,7 +25,7 @@
 
 #define HWID_KEY_STR "androidboot.product.hardware.id"
 
-#define SKU_ID_KEY_STR "androidboot.product.hardware.sku"
+#define SKU_ID_KEY_STR "androidboot.product.vendor.sku"
 /* 20 characters for model name. Suffix with 12 characters for SKU ID */
 #define MAX_SKU_ID_LENGTH 32
 
