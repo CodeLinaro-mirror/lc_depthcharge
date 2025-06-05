@@ -18,6 +18,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <vb2_android_misc.h>
+#include <vb2_gpt.h>
 
 #include "drivers/storage/ufs.h"
 #include "net/uip.h"
@@ -25,7 +26,6 @@
 #include "fastboot/disk.h"
 #include "fastboot/fastboot.h"
 #include "fastboot/vars.h"
-#include "gpt_misc.h"
 
 static int parse_hex(const char *str, uint32_t *ret)
 {
