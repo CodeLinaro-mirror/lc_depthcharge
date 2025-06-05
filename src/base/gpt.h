@@ -14,10 +14,11 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
+#ifndef __BASE_GPT_H__
+#define __BASE_GPT_H__
 
-/* Headers from vboot for GPT manipulation. */
-#include <gpt.h>
-#include <gpt_misc.h>
+#include <stdbool.h>
+#include <vb2_gpt.h>
 
 #include "drivers/storage/stream.h"
 #include "drivers/storage/blockdev.h"
@@ -30,3 +31,5 @@ GptData *alloc_gpt(BlockDev *bdev);
 
 /* Free the allocated GPT pointer. */
 void free_gpt(BlockDev *bdev, GptData *gpt);
+
+#endif /* __BASE_GPT_H__ */
