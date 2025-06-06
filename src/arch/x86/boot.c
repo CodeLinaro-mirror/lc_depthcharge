@@ -105,9 +105,9 @@ int boot_x86_linux(struct boot_info *bi)
 	hdr->cmd_line_ptr = (uintptr_t)cmd_line;
 
 	run_cleanup_funcs(CleanupOnHandoff);
-	if (CONFIG(BOOTCONFIG) &&
-	    append_android_bootconfig_boottime(bi))
-		return 1;
+	if (CONFIG(BOOTCONFIG))
+		append_android_bootconfig_boottime(bi);
+
 
 	puts("\nStarting kernel ...\n\n");
 	timestamp_add_now(TS_START_KERNEL);
