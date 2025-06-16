@@ -90,8 +90,8 @@ int fastboot_save_gpt(struct FastbootOps *fb)
 	return ret;
 }
 
-void fastboot_write_raw(struct FastbootOps *fb, const uint64_t start_block,
-			const uint64_t block_count, void *data, size_t data_len)
+void fastboot_write_raw(struct FastbootOps *fb, const uint64_t start_block, void *data,
+			size_t data_len)
 {
 	/*
 	 * Raw write may modify GPT, just in case save GPT to the disk, so the next command
@@ -105,16 +105,16 @@ void fastboot_write_raw(struct FastbootOps *fb, const uint64_t start_block,
 	if (fastboot_disk_init(fb))
 		return;
 
-	if (start_block >= fb->disk->block_count ||
-	    block_count > fb->disk->block_count - start_block) {
-		fastboot_fail(fb, "Region [start: %llu, size: %llu] can't fit in %llu blocks\n",
-			      start_block, block_count, fb->disk->block_count);
+	if (start_block >= fb->disk->block_count) {
+		fastboot_fail(fb, "Start block %llu needs to be within %llu disk blocks\n",
+			      start_block, fb->disk->block_count);
 		return;
 	}
 
+	const uint64_t block_count = fb->disk->block_count - start_block;
 	if (is_sparse_image(data)) {
 		printf("Writing sparse image to LBA %llu to %llu\n",
-		       start_block, start_block + block_count);
+		       start_block, fb->disk->block_count);
 		if (write_sparse_image(fb->disk, start_block, block_count, data, data_len) !=
 		    GPT_IO_SUCCESS)
 			fastboot_fail(fb, "Failed to write sparse image");
@@ -129,7 +129,7 @@ void fastboot_write_raw(struct FastbootOps *fb, const uint64_t start_block,
 		return;
 	}
 
-	uint64_t data_blocks = data_len / fb->disk->block_size;
+	const uint64_t data_blocks = data_len / fb->disk->block_size;
 	if (data_blocks > block_count) {
 		fastboot_fail(fb, "Image is too big");
 		return;
