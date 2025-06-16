@@ -84,6 +84,9 @@ static void fastboot_cmd_download(struct FastbootOps *fb, const char *arg)
 
 static void fastboot_cmd_flash(struct FastbootOps *fb, const char *arg)
 {
+	const char *offset_str;
+	char *offset_end = NULL;
+
 	if (!fb->has_staged_data) {
 		fastboot_fail(fb, "No data staged to flash");
 		return;
@@ -93,32 +96,16 @@ static void fastboot_cmd_flash(struct FastbootOps *fb, const char *arg)
 	void *data = fastboot_get_memory_buffer(fb, &data_len);
 
 	if (!strncmp(arg, FASTBOOT_RAW_WRITE_ARG, FASTBOOT_RAW_WRITE_ARG_LEN)) {
-		long long int offset = strtoll(arg + FASTBOOT_RAW_WRITE_ARG_LEN, NULL, 0);
-		if (offset < 0) {
-			fastboot_fail(fb, "Offset cannot be negative");
+		offset_str = arg + FASTBOOT_RAW_WRITE_ARG_LEN;
+		long long int offset = strtoll(offset_str, &offset_end, 0);
+		if (offset < 0 || offset_str == offset_end || *offset_end != '\0') {
+			fastboot_fail(fb, "Invalid block offset for raw-sector (\"%s\")",
+				      offset_str);
 			return;
 		}
-		disk.disk = NULL;
-		fastboot_disk_init(&disk);
-		/* Ignore errors with GPT as we don't need that for raw write */
-		if (disk.disk == NULL) {
-			fastboot_fail(fb, "Failed to init disk");
+		if (fastboot_disk_init(fb))
 			return;
-		}
-		/*
-		 * disk.gpt can be null if there is no valid GPT on disk. If disk.gpt
-		 * is not null, free it so we will not overwrite GPT if GPT was
-		 * modified by raw write.
-		 */
-		if (disk.gpt) {
-			fastboot_disk_destroy(&disk);
-		}
-		if (disk.disk->block_count <= offset) {
-			fastboot_fail(fb, "Offset cannot be larger then disk block count");
-			return;
-		}
-
-		fastboot_write_raw(fb, &disk, (uint64_t)offset, disk.disk->block_count - offset,
+		fastboot_write_raw(fb, (uint64_t)offset, fb->disk->block_count - offset,
 				   data, (uint32_t)data_len);
 		return;
 	}

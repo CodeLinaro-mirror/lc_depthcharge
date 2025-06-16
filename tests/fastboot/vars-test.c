@@ -943,6 +943,13 @@ static void test_fb_getvar_serialno(void **state)
 	TEST_FASTBOOT_GETVAR_OK(VAR_SERIALNO, "", "unknown");
 }
 
+static void test_fb_getvar_disk_block_count(void **state)
+{
+	test_disk.block_count = 0x1000;
+
+	TEST_FASTBOOT_GETVAR_OK(VAR_DISK_BLOCK_COUNT, "", "0x1000");
+}
+
 /* fastboot_cmd_getvar tests */
 static void test_fb_cmd_getvar_current_slot(void **state)
 {
@@ -1143,6 +1150,17 @@ static void test_fb_cmd_getvar_serialno(void **state)
 	fastboot_cmd_getvar(fb, "serialno");
 }
 
+static void test_fb_cmd_getvar_disk_block_count(void **state)
+{
+	struct FastbootOps *fb = *state;
+
+	test_disk.block_count = 0x1000;
+
+	WILL_SEND_EXACT(fb, "OKAY0x1000");
+
+	fastboot_cmd_getvar(fb, "Disk-block-count");
+}
+
 /* fastboot_cmd_getvar fail tests */
 static void test_fb_cmd_getvar_get_fail(void **state)
 {
@@ -1289,6 +1307,9 @@ static void test_fb_cmd_getvar_all(void **state)
 	/* Setup for serialno */
 	WILL_VPD_FIND("serial_number", 4, "123456789");
 
+	/* Setup for Disk-block-count */
+	test_disk.block_count = 0x5000;
+
 	fastboot_cmd_getvar(fb, "all");
 
 	if (packets_list.next == NULL)
@@ -1328,6 +1349,7 @@ static void test_fb_cmd_getvar_all(void **state)
 	check_fb_cmd_getvar_all_contains("INFOerase-block-size:0x1000");
 	check_fb_cmd_getvar_all_contains("INFOversion-bootloader:fwversion");
 	check_fb_cmd_getvar_all_contains("INFOserialno:1234");
+	check_fb_cmd_getvar_all_contains("INFODisk-block-count:0x5000");
 
 	list_for_each(node, packets_list, list_node) {
 		fail_msg("Unexpected message: \"%s\"", node->msg);
@@ -1394,6 +1416,9 @@ static void test_fb_cmd_getvar_all_fail_get_var(void **state)
 	/* Setup for serialno */
 	WILL_VPD_FIND("serial_number", 4, "123456789");
 
+	/* Setup for Disk-block-count */
+	test_disk.block_count = 0x5000;
+
 	fastboot_cmd_getvar(fb, "all");
 
 	if (packets_list.next == NULL)
@@ -1431,6 +1456,7 @@ static void test_fb_cmd_getvar_all_fail_get_var(void **state)
 	check_fb_cmd_getvar_all_contains("INFOerase-block-size:0x1000");
 	check_fb_cmd_getvar_all_contains("INFOversion-bootloader:fwversion");
 	check_fb_cmd_getvar_all_contains("INFOserialno:1234");
+	check_fb_cmd_getvar_all_contains("INFODisk-block-count:0x5000");
 
 	list_for_each(node, packets_list, list_node) {
 		fail_msg("Unexpected message: \"%s\"", node->msg);
@@ -1506,6 +1532,7 @@ int main(void)
 		TEST(test_fb_getvar_slot_unbootable_at_index_last),
 		TEST(test_fb_getvar_version_bootloader),
 		TEST(test_fb_getvar_serialno),
+		TEST(test_fb_getvar_disk_block_count),
 		TEST(test_fb_cmd_getvar_current_slot),
 		TEST(test_fb_cmd_getvar_download_size),
 		TEST(test_fb_cmd_getvar_is_userspace),
@@ -1523,6 +1550,7 @@ int main(void)
 		TEST(test_fb_cmd_getvar_slot_unbootable),
 		TEST(test_fb_cmd_getvar_version_bootloader),
 		TEST(test_fb_cmd_getvar_serialno),
+		TEST(test_fb_cmd_getvar_disk_block_count),
 		TEST(test_fb_cmd_getvar_get_fail),
 		TEST(test_fb_cmd_getvar_no_args),
 		TEST(test_fb_cmd_getvar_prefix_of_var_name),

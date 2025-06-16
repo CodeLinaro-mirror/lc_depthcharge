@@ -33,9 +33,8 @@
 int fastboot_do_disk_init(struct FastbootOps *fb, bool send_fail);
 int fastboot_do_disk_gpt_init(struct FastbootOps *fb, bool send_fail);
 int fastboot_save_gpt(struct FastbootOps *fb);
-void fastboot_write_raw(struct FastbootOps *fb, struct fastboot_disk *disk,
-			const uint64_t start_block, const uint64_t block_count,
-			void *data, size_t data_len);
+void fastboot_write_raw(struct FastbootOps *fb, const uint64_t start_block,
+			const uint64_t block_count, void *data, size_t data_len);
 void fastboot_write(struct FastbootOps *fb, const char *partition_name,
 		    const uint64_t offset, void *data, size_t data_len);
 void fastboot_erase(struct FastbootOps *fb, const char *partition_name);
