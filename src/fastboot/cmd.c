@@ -159,6 +159,9 @@ static bool fastboot_read_misc_cmdline(struct FastbootOps *fb,
 {
 	struct fastboot_disk disk;
 	size_t offset;
+	size_t offset_from_buf = 0;
+	size_t buffer_len;
+	void *buffer;
 
 	if (!fastboot_get_cmdline_offset(fb, magic, &offset))
 		return false;
@@ -168,16 +171,37 @@ static bool fastboot_read_misc_cmdline(struct FastbootOps *fb,
 		return false;
 	}
 
-	if (!fastboot_read(&disk, GPT_ENT_NAME_ANDROID_MISC, fb_cmd,
-			   sizeof(struct vb2_fastboot_cmdline),
-			   offset)) {
+	buffer = fb_cmd;
+	buffer_len = sizeof(struct vb2_fastboot_cmdline);
+	/* Allocate block aligned buffer if size or offset isn't block aligned */
+	if (buffer_len % disk.disk->block_size || offset % disk.disk->block_size) {
+		offset_from_buf = offset % disk.disk->block_size;
+		offset -= offset_from_buf;
+		buffer_len += offset_from_buf;
+		buffer_len = ALIGN_UP(buffer_len, disk.disk->block_size);
+		buffer = malloc(buffer_len);
+		if (buffer == NULL) {
+			FB_FAIL_AND_DEBUG(fb, "memory allocation failed");
+			fastboot_disk_destroy(&disk);
+			return false;
+		}
+	}
+
+	if (!fastboot_read(&disk, GPT_ENT_NAME_ANDROID_MISC, buffer,
+			   buffer_len, offset)) {
 		FB_FAIL_AND_DEBUG(fb, "Failed to read misc partition (magic 0x%x, offset %ld)",
 				  magic, offset);
+		free(buffer);
 		fastboot_disk_destroy(&disk);
 		return false;
 	}
 
 	fastboot_disk_destroy(&disk);
+
+	if (fb_cmd != buffer) {
+		memcpy(fb_cmd, buffer + offset_from_buf, sizeof(struct vb2_fastboot_cmdline));
+		free(buffer);
+	}
 
 	if (!vb2_is_fastboot_cmdline_valid(fb_cmd, magic)) {
 		FB_FAIL_AND_DEBUG(fb, "Invalid cmdline data stored in misc");
@@ -193,6 +217,9 @@ static void fastboot_write_misc_cmdline(struct FastbootOps *fb,
 {
 	struct fastboot_disk disk;
 	size_t offset;
+	size_t offset_from_buf = 0;
+	size_t buffer_len;
+	void *buffer;
 
 	if (!fastboot_get_cmdline_offset(fb, magic, &offset))
 		return;
@@ -206,9 +233,36 @@ static void fastboot_write_misc_cmdline(struct FastbootOps *fb,
 	fb_cmd->version = 0;
 	vb2_update_fastboot_cmdline_checksum(fb_cmd);
 
-	fastboot_write(fb, &disk, GPT_ENT_NAME_ANDROID_MISC, fb_cmd,
-		       sizeof(struct vb2_fastboot_cmdline),
-		       offset);
+	buffer = fb_cmd;
+	buffer_len = sizeof(struct vb2_fastboot_cmdline);
+	/* Allocate block aligned buffer if size or offset isn't block aligned */
+	if (buffer_len % disk.disk->block_size || offset % disk.disk->block_size) {
+		offset_from_buf = offset % disk.disk->block_size;
+		offset -= offset_from_buf;
+		buffer_len += offset_from_buf;
+		buffer_len = ALIGN_UP(buffer_len, disk.disk->block_size);
+		buffer = malloc(buffer_len);
+		if (buffer == NULL) {
+			fastboot_fail(fb, "memory allocation failed");
+			fastboot_disk_destroy(&disk);
+			return;
+		}
+		if (!fastboot_read(&disk, GPT_ENT_NAME_ANDROID_MISC, buffer,
+				   buffer_len, offset)) {
+			fastboot_fail(fb, "Failed to read misc partition (offset %ld)",
+				      offset);
+			free(buffer);
+			fastboot_disk_destroy(&disk);
+			return;
+		}
+		memcpy(buffer + offset_from_buf, fb_cmd, sizeof(struct vb2_fastboot_cmdline));
+	}
+
+	fastboot_write(fb, &disk, GPT_ENT_NAME_ANDROID_MISC, buffer,
+		       buffer_len, offset);
+
+	if (fb_cmd != buffer)
+		free(buffer);
 
 	fastboot_disk_destroy(&disk);
 }
