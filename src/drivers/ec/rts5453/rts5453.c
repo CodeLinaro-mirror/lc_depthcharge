@@ -837,17 +837,12 @@ static const VbootAuxfwOps *new_rts545x_from_chip_info(struct ec_response_pd_chi
 		return NULL;
 	}
 
-	switch (r->product_id) {
-	case CONFIG_DRIVER_EC_RTS545X_PID:
-		rts545x = new_rts5453(NULL, ec_pd_id, r);
-		if (rts545x == NULL) {
-			printf("Error instantiating RTS5453 driver. Skipping FW update.\n");
-			return NULL;
-		}
-		break;
-	default:
+	rts545x = new_rts5453(NULL, ec_pd_id, r);
+	if (rts545x == NULL) {
+		printf("Error instantiating RTS5453 driver. Skipping FW update.\n");
 		return NULL;
 	}
+
 	rts545x->chip_info.vid = r->vendor_id;
 	rts545x->chip_info.pid = r->product_id;
 	rts545x->fw_info.major_ver = (r->fw_version_number >> FW_MAJOR_VERSION_SHIFT) & 0xff;
