@@ -103,8 +103,14 @@ static void fastboot_cmd_flash(struct FastbootOps *fb, const char *arg)
 			fastboot_fail(fb, "Failed to init disk");
 			return;
 		}
-		/* Free GPT, so we will not overwrite GPT if it was modified by raw write */
-		fastboot_disk_destroy(&disk);
+		/*
+		 * disk.gpt can be null if there is no valid GPT on disk. If disk.gpt
+		 * is not null, free it so we will not overwrite GPT if GPT was
+		 * modified by raw write.
+		 */
+		if (disk.gpt) {
+			fastboot_disk_destroy(&disk);
+		}
 		if (disk.disk->block_count <= offset) {
 			fastboot_fail(fb, "Offset cannot be larger then disk block count");
 			return;
