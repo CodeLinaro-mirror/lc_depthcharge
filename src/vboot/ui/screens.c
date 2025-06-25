@@ -21,7 +21,6 @@
 
 #include "base/list.h"
 #include "boot/payload.h"
-#include "debug/dev.h"
 #include "diag/common.h"
 #include "diag/health_info.h"
 #include "diag/memory.h"
@@ -622,10 +621,7 @@ vb2_error_t advanced_options_init(struct ui_context *ui)
 /* TODO(b/370988331): Implement UI for this action */
 vb2_error_t ui_developer_mode_enter_fastboot_action(struct ui_context *ui)
 {
-	if (CONFIG(FASTBOOT_IN_PROD))
-		fastboot();
-	else
-		dc_dev_fastboot();
+	fastboot();
 
 	/*
 	 * The only way to get here is via "fastboot continue". Drain any
