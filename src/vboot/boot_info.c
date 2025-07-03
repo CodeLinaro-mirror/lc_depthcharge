@@ -25,6 +25,7 @@
 
 #include "base/android_misc.h"
 #include "base/gpt.h"
+#include "base/timestamp.h"
 #include "boot/android_bootconfig_params.h"
 #include "boot/android_pvmfw.h"
 #include "boot/bootconfig.h"
@@ -134,6 +135,8 @@ static int setup_pvmfw(struct boot_info *bi, VbSelectAndLoadKernelParams *kparam
 	size_t pvmfw_size = kparams->pvmfw_out_size, params_size;
 	void *pvmfw_addr = kparams->pvmfw_buffer, *params = NULL;
 
+	timestamp_add_now(TS_PVMFW_SETUP_START);
+
 	if (!pvmfw_addr || pvmfw_size == 0) {
 		/* There is no pvmfw so fail and don't do anything */
 		printf("pvmfw was not loaded\n");
@@ -148,6 +151,8 @@ static int setup_pvmfw(struct boot_info *bi, VbSelectAndLoadKernelParams *kparam
 		ret = -1;
 		goto fail;
 	}
+
+	timestamp_add_now(TS_PVMFW_GSC_NVRAM_DONE);
 
 	/* Verify that pvmfw start address is aligned */
 	if (!IS_ALIGNED((uintptr_t)pvmfw_addr, ANDROID_PVMFW_CFG_ALIGN)) {
@@ -199,6 +204,8 @@ fail:
 	/* If failed then clear the buffer */
 	if (ret != 0)
 		memset(kparams->pvmfw_buffer, 0, kparams->pvmfw_buffer_size);
+
+	timestamp_add_now(TS_PVMFW_SETUP_DONE);
 
 	return ret;
 }
