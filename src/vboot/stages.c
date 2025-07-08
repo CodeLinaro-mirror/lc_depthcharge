@@ -326,7 +326,11 @@ void vboot_boot_kernel(VbSelectAndLoadKernelParams *kparams)
 	if (crossystem_setup(FIRMWARE_TYPE_AUTO_DETECT))
 		return;
 
-	boot(&bi);
+	if (CONFIG(KERNEL_MULTIBOOT) && bi.kparams &&
+	    GET_KERNEL_IMG_TYPE(bi.kparams->flags) == KERNEL_IMAGE_MULTIBOOT)
+		multiboot_boot(&bi);
+	else
+		boot(&bi);
 
  fail:
 	/*
