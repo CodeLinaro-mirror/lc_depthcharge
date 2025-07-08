@@ -352,7 +352,7 @@ void vboot_boot_kernel(struct vb2_kernel_params *kparams)
 	if (crossystem_setup(FIRMWARE_TYPE_AUTO_DETECT))
 		return;
 
-	if (CONFIG(KERNEL_MULTIBOOT) &&
+	if (CONFIG(KERNEL_MULTIBOOT) && bi.kparams &&
 	    GET_KERNEL_IMG_TYPE(bi.kparams->flags) == KERNEL_IMAGE_MULTIBOOT)
 		multiboot_boot(&bi);
 	else
