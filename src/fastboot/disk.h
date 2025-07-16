@@ -24,12 +24,6 @@
 #include "fastboot/fastboot.h"
 #include "gpt_misc.h"
 
-#define FASTBOOT_MAX_SLOTS 2
-
-#define fastboot_disk_init(fb) fastboot_do_disk_init((fb), true)
-#define fastboot_disk_gpt_init(fb) fastboot_do_disk_gpt_init((fb), true)
-#define fastboot_disk_init_no_fail(fb) fastboot_do_disk_init((fb), false)
-#define fastboot_disk_gpt_init_no_fail(fb) fastboot_do_disk_gpt_init((fb), false)
 int fastboot_do_disk_init(struct FastbootOps *fb, bool send_fail);
 int fastboot_do_disk_gpt_init(struct FastbootOps *fb, bool send_fail);
 int fastboot_save_gpt(struct FastbootOps *fb);
@@ -45,5 +39,25 @@ int fastboot_get_slot_suffixes(GptData *gpt, char *outbuf, size_t outbuf_len);
 void fastboot_slots_disable_all(GptData *gpt);
 bool fastboot_has_slot(GptData *gpt, const char *name, int len, bool *partition_found);
 bool partition_has_suffix(const char *partition_name);
+
+static inline int fastboot_disk_init(struct FastbootOps *fb)
+{
+	return fastboot_do_disk_init(fb, true);
+}
+
+static inline int fastboot_disk_gpt_init(struct FastbootOps *fb)
+{
+	return fastboot_do_disk_gpt_init(fb, true);
+}
+
+static inline int fastboot_disk_init_no_fail(struct FastbootOps *fb)
+{
+	return fastboot_do_disk_init(fb, false);
+}
+
+static inline int fastboot_disk_gpt_init_no_fail(struct FastbootOps *fb)
+{
+	return fastboot_do_disk_gpt_init(fb, false);
+}
 
 #endif // __FASTBOOT_DISK_H__

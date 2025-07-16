@@ -37,8 +37,9 @@ int fastboot_do_disk_gpt_init(struct FastbootOps *fb, bool send_fail)
 	return 0;
 }
 
-int fastboot_disk_init(struct FastbootOps *fb)
+int fastboot_do_disk_init(struct FastbootOps *fb, bool send_fail)
 {
+	assert_true(send_fail == fastboot_disk_init_could_fail);
 	fb->disk = &test_disk;
 
 	return 0;
