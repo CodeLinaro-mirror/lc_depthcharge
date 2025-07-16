@@ -26,8 +26,12 @@
 
 #define FASTBOOT_MAX_SLOTS 2
 
-int fastboot_disk_init(struct FastbootOps *fb);
-int fastboot_disk_gpt_init(struct FastbootOps *fb);
+#define fastboot_disk_init(fb) fastboot_do_disk_init((fb), true)
+#define fastboot_disk_gpt_init(fb) fastboot_do_disk_gpt_init((fb), true)
+#define fastboot_disk_init_no_fail(fb) fastboot_do_disk_init((fb), false)
+#define fastboot_disk_gpt_init_no_fail(fb) fastboot_do_disk_gpt_init((fb), false)
+int fastboot_do_disk_init(struct FastbootOps *fb, bool send_fail);
+int fastboot_do_disk_gpt_init(struct FastbootOps *fb, bool send_fail);
 int fastboot_save_gpt(struct FastbootOps *fb);
 void fastboot_write_raw(struct FastbootOps *fb, struct fastboot_disk *disk,
 			const uint64_t start_block, const uint64_t block_count,

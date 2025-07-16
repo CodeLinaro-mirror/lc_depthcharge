@@ -352,6 +352,7 @@ int ufs_write_descriptor(UfsCtlr *ufs, uint8_t idn, uint8_t idx,
 /* Reset mock data (for use before each test) */
 static int setup(void **state)
 {
+	fastboot_disk_init_could_fail = true;
 	setup_test_fb();
 
 	*state = &test_fb;
