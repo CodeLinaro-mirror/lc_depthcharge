@@ -217,30 +217,21 @@ static bool fastboot_read_misc_cmdline(struct FastbootOps *fb,
 	return true;
 }
 
-static void fastboot_write_misc_cmdline(struct FastbootOps *fb,
-					struct vb2_fastboot_cmdline *fb_cmd,
-					enum vb2_fastboot_cmdline_magic magic)
+static void fastboot_write_misc(struct FastbootOps *fb, size_t offset, void *data,
+				size_t data_len)
 {
 	struct fastboot_disk disk;
-	size_t offset;
 	size_t offset_from_buf = 0;
 	size_t buffer_len;
 	void *buffer;
-
-	if (!fastboot_get_cmdline_offset(fb, magic, &offset))
-		return;
 
 	if (!fastboot_disk_init(&disk)) {
 		fastboot_fail(fb, "Failed to init disk");
 		return;
 	}
 
-	fb_cmd->magic = magic;
-	fb_cmd->version = 0;
-	vb2_update_fastboot_cmdline_checksum(fb_cmd);
-
-	buffer = fb_cmd;
-	buffer_len = sizeof(struct vb2_fastboot_cmdline);
+	buffer = data;
+	buffer_len = data_len;
 	/* Allocate block aligned buffer if size or offset isn't block aligned */
 	if (buffer_len % disk.disk->block_size || offset % disk.disk->block_size) {
 		offset_from_buf = offset % disk.disk->block_size;
@@ -261,16 +252,32 @@ static void fastboot_write_misc_cmdline(struct FastbootOps *fb,
 			fastboot_disk_destroy(&disk);
 			return;
 		}
-		memcpy(buffer + offset_from_buf, fb_cmd, sizeof(struct vb2_fastboot_cmdline));
+		memcpy(buffer + offset_from_buf, data, data_len);
 	}
 
 	fastboot_write(fb, &disk, GPT_ENT_NAME_ANDROID_MISC, buffer,
 		       buffer_len, offset);
 
-	if (fb_cmd != buffer)
+	if (data != buffer)
 		free(buffer);
 
 	fastboot_disk_destroy(&disk);
+}
+
+static void fastboot_write_misc_cmdline(struct FastbootOps *fb,
+					struct vb2_fastboot_cmdline *fb_cmd,
+					enum vb2_fastboot_cmdline_magic magic)
+{
+	size_t offset;
+
+	if (!fastboot_get_cmdline_offset(fb, magic, &offset))
+		return;
+
+	fb_cmd->magic = magic;
+	fb_cmd->version = 0;
+	vb2_update_fastboot_cmdline_checksum(fb_cmd);
+
+	fastboot_write_misc(fb, offset, fb_cmd, sizeof(struct vb2_fastboot_cmdline));
 }
 
 static void fastboot_cmd_cmdline_get(struct FastbootOps *fb, const char *arg,
@@ -477,7 +484,6 @@ static void fastboot_cmd_oem_get_kernels(struct FastbootOps *fb, const char *arg
 
 static void fastboot_cmd_reboot_to_recovery(struct FastbootOps *fb, const char *arg)
 {
-	struct fastboot_disk disk;
 	struct vb2_bootloader_message bcb;
 
 	memset(&bcb, 0, sizeof(bcb));
@@ -494,14 +500,8 @@ static void fastboot_cmd_reboot_to_recovery(struct FastbootOps *fb, const char *
 		return;
 	}
 
-	if (!fastboot_disk_init(&disk)) {
-		fastboot_fail(fb, "Failed to init disk");
-		return;
-	}
+	fastboot_write_misc(fb, 0, &bcb, sizeof(bcb));
 
-	fastboot_write(fb, &disk, GPT_ENT_NAME_ANDROID_MISC, &bcb, sizeof(bcb), 0);
-
-	fastboot_disk_destroy(&disk);
 	/*
 	 * TODO(b/370988331): We should force boot from internal drive without rebooting
 	 *                    to speed up this.
