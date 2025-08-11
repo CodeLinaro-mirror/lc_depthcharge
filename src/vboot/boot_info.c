@@ -267,12 +267,6 @@ static int legacy_gki_setup_ramdisk(struct boot_info *bi,
 			return -1;
 		}
 
-		ret = bootconfig_append_cmdline(&bc, kparams->kernel_bootconfig_buffer);
-		if (ret < 0) {
-			printf("GKI: Cannot copy avb cmdline to bootconfig\n");
-			return -1;
-		}
-
 		if (append_android_bootconfig_params(&bc, kparams) < 0)
 			/*
 			 * On error, just log a message and continue with the rest of the

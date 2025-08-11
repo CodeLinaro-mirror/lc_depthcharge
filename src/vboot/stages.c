@@ -48,14 +48,6 @@
 #include "vboot/util/flag.h"
 #include "vboot/util/memory.h"
 
-/* Size of the buffer to convey cmdline properties to bootloader */
-#define KERNEL_CMDLINE_BUF_SIZE 3072
-/* Size of the buffer to convey bootconfig properties to bootloader */
-#define KERNEL_BOOTCONFIG_BUF_SIZE 3072
-
-_Static_assert(KERNEL_CMDLINE_BUF_SIZE + KERNEL_BOOTCONFIG_BUF_SIZE < CONFIG_KERNEL_SIZE,
-	      "Command line buffer too big");
-
 int vboot_in_recovery(void)
 {
 	return !!(vboot_get_context()->flags & VB2_CONTEXT_RECOVERY_MODE);
@@ -196,13 +188,6 @@ int vboot_select_and_boot_kernel(void)
 		.kernel_buffer_size = _kernel_end - _kernel_start,
 		.vboot_cmdline_buffer = vboot_cmdline,
 		.vboot_cmdline_size = sizeof(vboot_cmdline),
-		.kernel_buffer_size = CONFIG_KERNEL_SIZE - KERNEL_CMDLINE_BUF_SIZE -
-				      KERNEL_BOOTCONFIG_BUF_SIZE,
-		.kernel_cmdline_buffer = (char *)_kernel_end - KERNEL_CMDLINE_BUF_SIZE,
-		.kernel_cmdline_size = KERNEL_CMDLINE_BUF_SIZE,
-		.kernel_bootconfig_buffer = (char *)_kernel_end - KERNEL_CMDLINE_BUF_SIZE -
-					   KERNEL_BOOTCONFIG_BUF_SIZE,
-		.kernel_bootconfig_size = KERNEL_BOOTCONFIG_BUF_SIZE,
 		.pvmfw_buffer = NULL,
 		.pvmfw_buffer_size = 0,
 		/* Default to pvmfw not loaded */
