@@ -26,3 +26,4 @@ depthcharge-$(CONFIG_KERNEL_MULTIBOOT) += multiboot.c
 depthcharge-$(CONFIG_KERNEL_MULTIBOOT_ZBI) += zbi.c
 depthcharge-$(CONFIG_ANDROID_DT_FIXUP) += android_dt.c
 depthcharge-$(CONFIG_ANDROID_PVMFW) += android_pvmfw.c
+depthcharge-y += dt_update.c
