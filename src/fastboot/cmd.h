@@ -22,7 +22,7 @@
 #include <stdio.h>
 #include <stdint.h>
 
-typedef void (*fastboot_cmd_fn_t)(struct FastbootOps *fb, const char *arg);
+typedef void (*fastboot_cmd_fn_t)(struct FastbootOps *fb, char *arg);
 
 // Represents a command.
 typedef struct fastboot_cmd {
