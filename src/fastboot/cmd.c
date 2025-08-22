@@ -28,13 +28,13 @@
 #include "fastboot/vars.h"
 #include "net/uip.h"
 
-static void fastboot_cmd_continue(struct FastbootOps *fb, const char *arg)
+static void fastboot_cmd_continue(struct FastbootOps *fb, char *arg)
 {
 	fastboot_okay(fb, "Continuing boot");
 	fb->state = FINISHED;
 }
 
-static void fastboot_cmd_upload(struct FastbootOps *fb, const char *arg)
+static void fastboot_cmd_upload(struct FastbootOps *fb, char *arg)
 {
 	uint64_t len;
 	void *buf = fastboot_get_memory_buffer(fb, &len);
@@ -60,7 +60,7 @@ static void fastboot_cmd_upload(struct FastbootOps *fb, const char *arg)
 	fastboot_reset_staging(fb);
 }
 
-static void fastboot_cmd_download(struct FastbootOps *fb, const char *arg)
+static void fastboot_cmd_download(struct FastbootOps *fb, char *arg)
 {
 	char *end;
 	uint32_t size = strtoul(arg, &end, 16);
@@ -79,10 +79,7 @@ static void fastboot_cmd_download(struct FastbootOps *fb, const char *arg)
 	fastboot_data(fb, size);
 }
 
-#define FASTBOOT_RAW_WRITE_ARG "raw-sector:"
-#define FASTBOOT_RAW_WRITE_ARG_LEN (sizeof(FASTBOOT_RAW_WRITE_ARG) - 1)
-
-static void fastboot_cmd_flash(struct FastbootOps *fb, const char *arg)
+static void fastboot_cmd_flash(struct FastbootOps *fb, char *arg)
 {
 	const char *offset_str;
 	char *offset_end = NULL;
@@ -113,7 +110,7 @@ static void fastboot_cmd_flash(struct FastbootOps *fb, const char *arg)
 	fastboot_write(fb, arg, 0, data, (uint32_t)data_len);
 }
 
-static void fastboot_cmd_erase(struct FastbootOps *fb, const char *arg)
+static void fastboot_cmd_erase(struct FastbootOps *fb, char *arg)
 {
 	fastboot_erase(fb, arg);
 }
@@ -337,42 +334,42 @@ static void fastboot_cmd_cmdline_set(struct FastbootOps *fb, const char *arg,
 	fastboot_succeed(fb);
 }
 
-static void fastboot_cmd_oem_cmdline_get(struct FastbootOps *fb, const char *arg)
+static void fastboot_cmd_oem_cmdline_get(struct FastbootOps *fb, char *arg)
 {
 	fastboot_cmd_cmdline_get(fb, arg, false);
 }
 
-static void fastboot_cmd_oem_cmdline_add(struct FastbootOps *fb, const char *arg)
+static void fastboot_cmd_oem_cmdline_add(struct FastbootOps *fb, char *arg)
 {
 	fastboot_cmd_cmdline_add(fb, arg, false);
 }
 
-static void fastboot_cmd_oem_cmdline_del(struct FastbootOps *fb, const char *arg)
+static void fastboot_cmd_oem_cmdline_del(struct FastbootOps *fb, char *arg)
 {
 	fastboot_cmd_cmdline_del(fb, arg, false);
 }
 
-static void fastboot_cmd_oem_cmdline_set(struct FastbootOps *fb, const char *arg)
+static void fastboot_cmd_oem_cmdline_set(struct FastbootOps *fb, char *arg)
 {
 	fastboot_cmd_cmdline_set(fb, arg, false);
 }
 
-static void fastboot_cmd_oem_bootconfig_get(struct FastbootOps *fb, const char *arg)
+static void fastboot_cmd_oem_bootconfig_get(struct FastbootOps *fb, char *arg)
 {
 	fastboot_cmd_cmdline_get(fb, arg, true);
 }
 
-static void fastboot_cmd_oem_bootconfig_add(struct FastbootOps *fb, const char *arg)
+static void fastboot_cmd_oem_bootconfig_add(struct FastbootOps *fb, char *arg)
 {
 	fastboot_cmd_cmdline_add(fb, arg, true);
 }
 
-static void fastboot_cmd_oem_bootconfig_del(struct FastbootOps *fb, const char *arg)
+static void fastboot_cmd_oem_bootconfig_del(struct FastbootOps *fb, char *arg)
 {
 	fastboot_cmd_cmdline_del(fb, arg, true);
 }
 
-static void fastboot_cmd_oem_bootconfig_set(struct FastbootOps *fb, const char *arg)
+static void fastboot_cmd_oem_bootconfig_set(struct FastbootOps *fb, char *arg)
 {
 	fastboot_cmd_cmdline_set(fb, arg, true);
 }
@@ -408,7 +405,7 @@ static bool get_kernels_cb(void *ctx, int index, GptEntry *e,
 		      GetEntryPriority(e));
 	return false;
 }
-static void fastboot_cmd_oem_get_kernels(struct FastbootOps *fb, const char *arg)
+static void fastboot_cmd_oem_get_kernels(struct FastbootOps *fb, char *arg)
 {
 	struct get_kernels_ctx ctx = {
 		.fb = fb,
@@ -448,8 +445,7 @@ static int fastboot_parse_ufs_desc_args(struct FastbootOps *fb,
 	return 0;
 }
 
-static void fastboot_cmd_oem_read_ufs_descriptor(struct FastbootOps *fb,
-						 const char *arg)
+static void fastboot_cmd_oem_read_ufs_descriptor(struct FastbootOps *fb, char *arg)
 {
 	if (!CONFIG(DRIVER_STORAGE_UFS)) {
 		fastboot_fail(fb, "UFS is not supported by the board");
@@ -484,8 +480,7 @@ static void fastboot_cmd_oem_read_ufs_descriptor(struct FastbootOps *fb,
 	fastboot_succeed(fb);
 }
 
-static void fastboot_cmd_oem_write_ufs_descriptor(struct FastbootOps *fb,
-						  const char *arg)
+static void fastboot_cmd_oem_write_ufs_descriptor(struct FastbootOps *fb, char *arg)
 {
 	if (!CONFIG(DRIVER_STORAGE_UFS)) {
 		fastboot_fail(fb, "UFS is not supported by the board");
@@ -533,7 +528,7 @@ static void fastboot_cmd_oem_write_ufs_descriptor(struct FastbootOps *fb,
 #define BCB_RECOVERY_ARG0 "recovery"
 #define BCB_RECOVERY_ARG_FASTBOOT "--fastboot"
 
-static void fastboot_cmd_reboot_to_target(struct FastbootOps *fb, const char *arg)
+static void fastboot_cmd_reboot_to_target(struct FastbootOps *fb, char *arg)
 {
 	struct bootloader_message bcb;
 
@@ -580,13 +575,13 @@ static void fastboot_cmd_reboot_to_target(struct FastbootOps *fb, const char *ar
 	fb->state = REBOOT;
 }
 
-static void fastboot_cmd_reboot(struct FastbootOps *fb, const char *arg)
+static void fastboot_cmd_reboot(struct FastbootOps *fb, char *arg)
 {
 	fastboot_succeed(fb);
 	fb->state = REBOOT;
 }
 
-static void fastboot_cmd_set_active(struct FastbootOps *fb, const char *arg)
+static void fastboot_cmd_set_active(struct FastbootOps *fb, char *arg)
 {
 	if (fastboot_disk_gpt_init(fb))
 		return;
