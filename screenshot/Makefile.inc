@@ -43,6 +43,7 @@ screenshot-srcs += screenshot/mocks/vb2api.c
 screenshot-srcs += screenshot/stubs/diag.c
 screenshot-srcs += screenshot/stubs/display.c
 screenshot-srcs += screenshot/stubs/ui.c
+screenshot-srcs += src/fastboot/fastboot_stubs.c
 screenshot-srcs += src/vboot/ui/bitmap.c
 screenshot-srcs += src/vboot/ui/display.c
 screenshot-srcs += src/vboot/ui/draw.c
