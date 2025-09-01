@@ -14,7 +14,7 @@
 struct pvmfw_config_entry {
 	uint32_t offset;
 	uint32_t size;
-} __attribute__((packed));
+};
 
 struct pvmfw_config_v1_3 {
 	/* Header */
@@ -36,7 +36,7 @@ struct pvmfw_config_v1_3 {
 
 	/* Entries' blobs */
 	uint8_t blobs[];
-} __attribute__((packed));
+};
 
 /* pvmfw's entry 4: Reserved memory blob header */
 struct pvmfw_cfg_rmem_hdr {
@@ -44,10 +44,10 @@ struct pvmfw_cfg_rmem_hdr {
 	uint32_t blob_offset;
 	uint32_t blob_size;
 	uint32_t compat_offset;
+	uint32_t flags;
+};
 
 #define PVMFW_CFG_RESERVED_MEM_NO_MAP 0x1
-	uint32_t flags;
-} __attribute__((packed));
 
 #define GSC_EARLY_ENTROPY_SIZE 64
 #define GSC_SESSION_KEY_SEED_SIZE 32
@@ -124,7 +124,7 @@ struct pvmfw_boot_params_cbor_v1 {
 		uint8_t cbor_labels_session[3];
 		uint8_t session_key_seed[GSC_SESSION_KEY_SEED_SIZE];
 		/*
-		 * 0x02 - uint = 3	AuthTokenKeySeed label
+		 * 0x03 - uint = 3	AuthTokenKeySeed label
 		 * 0x58 - bstr
 		 * 0x20 - .size 32
 		 */
@@ -140,20 +140,6 @@ struct pvmfw_boot_params_cbor_v1 {
 	/* AndroidDiceHandover */
 	uint8_t android_dice_handover[];
 } __attribute__((packed));
-
-/**
- * Offsets and sizes of extracted data in the buffer.
- */
-struct pvmfw_boot_params {
-	/* Entry 0: AndroidDiceHandover offset and size */
-	size_t handover_offset;
-	size_t handover_size;
-
-	/* Entry 4: Reserved memory offset and sizes */
-	size_t reserved_mem_offset;
-	/* Size of entire entry with the headers and also blobs */
-	size_t reserved_mem_size;
-};
 
 static void copy_reserved_mem(struct pvmfw_boot_params_cbor_v1 *v1,
 			      struct pvmfw_cfg_rmem *reserved)
@@ -214,13 +200,12 @@ static void copy_reserved_mem(struct pvmfw_boot_params_cbor_v1 *v1,
 /**
  * Parse BootParam CBOR object and extract relevant data.
  */
-static int parse_boot_params(const void *blob, size_t size, void *dest_buffer, size_t dest_size,
-			     struct pvmfw_boot_params *params)
+static int parse_boot_params(const void *blob, size_t size, struct pvmfw_config_v1_3 *cfg,
+			     size_t max_blobs_size)
 {
+	size_t offset_blobs;
 	const char *field;
 	struct pvmfw_boot_params_cbor_v1 *v1 = (void *)blob;
-
-	memset(params, 0, sizeof(*params));
 
 	/*
 	 * Verify that the blob is at least big enough to compare the
@@ -274,50 +259,50 @@ static int parse_boot_params(const void *blob, size_t size, void *dest_buffer, s
 	 *
 	 * The remaining bytes of BootParams structure are AndroidDiceHandover
 	 * bytes.
+	 *
+	 * Fill the entry 0 and entry 4 location. The remaining entries are
+	 * not used so leave them as zeros.
+	 *
+	 * Place handover right after config header.
 	 */
-	params->handover_size = size - sizeof(*v1);
-
-	/*
-	 * Align the entries offsets to 8 bytes to make sure we won't run into
-	 * unaligned memory access later.
-	 */
-	params->handover_offset =
-		ALIGN_UP((uintptr_t)dest_buffer, ANDROID_PVMFW_CFG_BLOB_ALIGN) -
-		(uintptr_t)dest_buffer;
+	cfg->dice_handover.offset = offsetof(struct pvmfw_config_v1_3, blobs);
+	cfg->dice_handover.size = size - sizeof(struct pvmfw_boot_params_cbor_v1);
 
 	/* Make sure that there is enough space for handover in the buffer */
-	if (params->handover_offset + params->handover_size > dest_size) {
+	if (cfg->dice_handover.size > max_blobs_size) {
 		printf("Not enough space in the destination buffer for handover data.\n");
 		return -1;
 	}
 
 	/* Copy handover data into place. */
-	memcpy(dest_buffer + params->handover_offset, v1->android_dice_handover,
-	       params->handover_size);
+	memcpy(&cfg->blobs[0], v1->android_dice_handover, cfg->dice_handover.size);
 
 	/*
 	 * Align the entry offsets to pvmfw config alignment bytes to make
 	 * sure we won't run into unaligned memory access later.
+	 * The size of the entire entry contains both headers and blobs.
 	 */
-	params->reserved_mem_offset = ALIGN_UP(params->handover_offset + params->handover_size,
-					       ANDROID_PVMFW_CFG_BLOB_ALIGN);
-
-	/* The size of the entire entry with headers and blobs */
-	params->reserved_mem_size = sizeof(struct pvmfw_cfg_rmem);
+	offset_blobs = ALIGN_UP(cfg->dice_handover.size, ANDROID_PVMFW_CFG_BLOB_ALIGN);
+	cfg->reserved_mem.offset = offsetof(struct pvmfw_config_v1_3, blobs) + offset_blobs;
+	cfg->reserved_mem.size = sizeof(struct pvmfw_cfg_rmem);
 
 	/* Make sure that there is enough space for reserved memory in the buffer */
-	if (params->reserved_mem_offset + params->reserved_mem_size > dest_size) {
+	if (offset_blobs + cfg->reserved_mem.size > max_blobs_size) {
 		printf("Not enough space in the destination buffer for reserved memory.\n");
 		return -1;
 	}
 
-	copy_reserved_mem(v1,
-			  (struct pvmfw_cfg_rmem *)(dest_buffer + params->reserved_mem_offset));
+	/* Copy headers and blobs data into place. */
+	copy_reserved_mem(v1, (struct pvmfw_cfg_rmem *)&cfg->blobs[offset_blobs]);
+
+	/* Calculate the total size of the config with blobs, using the last used entry */
+	cfg->total_size = cfg->reserved_mem.offset + cfg->reserved_mem.size;
 
 	return 0;
 mismatch:
 	printf("Failed to parse BootParams CBOR structure. Constant fragment "
-	       "around '%s' mismatches expected structure.\n", field);
+	       "around '%s' mismatches expected structure.\n",
+	       field);
 	return 1;
 }
 
@@ -327,7 +312,6 @@ int setup_android_pvmfw(void *buffer, size_t buffer_size, size_t *pvmfw_size,
 	int ret;
 	uintptr_t pvmfw_addr, pvmfw_max, cfg_addr;
 	struct pvmfw_config_v1_3 *cfg;
-	struct pvmfw_boot_params boot_params;
 
 	/* Set the boundaries of the pvmfw buffer */
 	pvmfw_addr = (uintptr_t)buffer;
@@ -340,15 +324,7 @@ int setup_android_pvmfw(void *buffer, size_t buffer_size, size_t *pvmfw_size,
 	/* Make sure we have space for config and for some blobs */
 	if ((uintptr_t)cfg->blobs >= pvmfw_max) {
 		printf("No space in the buffer for pvmfw config\n");
-		goto fail;
-	}
-
-	/* Parse and extract data from BootParam CBOR object */
-	ret = parse_boot_params(params, params_size, cfg->blobs,
-				(size_t)(pvmfw_max - (uintptr_t)cfg->blobs),
-				&boot_params);
-	if (ret != 0) {
-		printf("Failed to parse pvmfw gsc boot params data\n");
+		ret = -1;
 		goto fail;
 	}
 
@@ -357,30 +333,23 @@ int setup_android_pvmfw(void *buffer, size_t buffer_size, size_t *pvmfw_size,
 	memcpy(cfg->magic, ANDROID_PVMFW_CFG_MAGIC, sizeof(cfg->magic));
 	cfg->version = ANDROID_PVMFW_CFG_V1_3;
 
-	/*
-	 * Fill the entry 0 and entry 4 location. The remaining entries are
-	 * not used so leave them as zeros.
-	 */
-	cfg->dice_handover.offset = offsetof(struct pvmfw_config_v1_3, blobs)
-		+ boot_params.handover_offset;
-	cfg->dice_handover.size = boot_params.handover_size;
-
-	cfg->reserved_mem.offset =
-		offsetof(struct pvmfw_config_v1_3, blobs) + boot_params.reserved_mem_offset;
-	cfg->reserved_mem.size = boot_params.reserved_mem_size;
-
-	/* Calculate the total size of the config, using the last used entry */
-	cfg->total_size = cfg->reserved_mem.offset + boot_params.reserved_mem_size;
+	/* Parse and extract data from BootParam CBOR object */
+	ret = parse_boot_params(params, params_size, cfg,
+				(size_t)(pvmfw_max - (uintptr_t)cfg->blobs));
+	if (ret != 0) {
+		printf("Failed to parse pvmfw gsc boot params data\n");
+		goto fail;
+	}
 
 	/*
 	 * Truncate the pvmfw's avb footer to minimize reserved memory size
 	 * aligned up to config alignment.
 	 */
-	*pvmfw_size = ALIGN_UP(cfg_addr - pvmfw_addr + cfg->total_size,
-			       ANDROID_PVMFW_CFG_ALIGN);
+	*pvmfw_size =
+		ALIGN_UP(cfg_addr - pvmfw_addr + cfg->total_size, ANDROID_PVMFW_CFG_ALIGN);
 
 	return 0;
 fail:
 	*pvmfw_size = 0;
-	return 0;
+	return ret;
 }
