@@ -24,6 +24,8 @@
 ListNode generic_usb_drivers;
 ListNode usb_host_controllers;
 
+static int usb_initialized;
+
 void usb_generic_create(usbdev_t *dev)
 {
 	// Allocate a structure to keep track of this device.
@@ -79,6 +81,7 @@ static int dc_usb_shutdown(struct CleanupFunc *cleanup, CleanupType type)
 {
 	printf("Shutting down all USB controllers.\n");
 	usb_exit();
+	usb_initialized = 0;
 	return 0;
 }
 
@@ -95,6 +98,10 @@ void dc_usb_initialize(void)
 
 	if (soc_usb_mux_init)
 		soc_usb_mux_init();
+
+	if (usb_initialized)
+		return;
+	usb_initialized = 1;
 
 	usb_initialize();
 	list_insert_after(&cleanup.list_node, &cleanup_funcs);
