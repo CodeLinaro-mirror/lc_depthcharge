@@ -62,3 +62,15 @@ uint32_t TlclLockPhysicalPresence(void)
 	function_called();
 	return mock_type(uint32_t);
 }
+
+uint32_t TlclGetRandom(uint8_t *data, uint32_t length, uint32_t *size)
+{
+	function_called();
+	check_expected_ptr(data);
+	check_expected(length);
+	check_expected_ptr(size);
+
+	*size = mock_type(uint32_t);
+
+	return mock_type(uint32_t);
+}
