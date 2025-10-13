@@ -283,13 +283,14 @@ static vb2_error_t tps6699x_post_update(const VbootAuxfwOps *vbaux)
 /* By default, output NULL to perform no update. Board code shall
  * override this function if supported.
  */
-__weak void board_tps6699x_get_image_paths(const char **image_path, const char **hash_path)
+__weak void board_tps6699x_get_image_paths(const char **image_path, const char **hash_path,
+					   int ec_pd_id, struct ec_response_pd_chip_info_v2 *r)
 {
 	*image_path = NULL;
 	*hash_path = NULL;
 }
 
-Tps6699x *new_tps6699x(int ec_pd_id)
+Tps6699x *new_tps6699x(int ec_pd_id, struct ec_response_pd_chip_info_v2 *r)
 {
 	VbootAuxfwOps fw_ops = {
 		.check_hash = tps6699x_check_hash,
@@ -297,7 +298,8 @@ Tps6699x *new_tps6699x(int ec_pd_id)
 		.post_update = tps6699x_post_update,
 	};
 
-	board_tps6699x_get_image_paths(&fw_ops.fw_image_name, &fw_ops.fw_hash_name);
+	board_tps6699x_get_image_paths(&fw_ops.fw_image_name, &fw_ops.fw_hash_name, ec_pd_id,
+				       r);
 
 	if (fw_ops.fw_image_name == NULL || fw_ops.fw_hash_name == NULL) {
 		/* No files, so don't perform an update */
@@ -328,7 +330,7 @@ const VbootAuxfwOps *new_tps6699x_from_chip_info(struct ec_response_pd_chip_info
 		return NULL;
 	}
 
-	tps6699x = new_tps6699x(ec_pd_id);
+	tps6699x = new_tps6699x(ec_pd_id, r);
 	if (tps6699x == NULL) {
 		printf("Error instantiating tps6699x driver. Skipping FW update.\n");
 		return NULL;
