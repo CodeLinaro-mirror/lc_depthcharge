@@ -9,6 +9,7 @@ secdata_tpm-test-srcs += tests/mocks/tlcl_rw.c
 secdata_tpm-test-srcs += src/vboot/secdata_tpm.c
 secdata_tpm-test-srcs += src/vboot/callbacks/tpm.c
 secdata_tpm-test-mocks += TlclWrite TlclRead TlclForceClear \
-	TlclSetEnable TlclSetDeactivated
+	TlclSetEnable TlclSetDeactivated \
+	TlclLockPhysicalPresence
 
 ui-test-common-srcs += src/fastboot/fastboot_stubs.c
