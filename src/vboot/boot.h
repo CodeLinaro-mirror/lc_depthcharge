@@ -30,6 +30,7 @@ struct boot_info {
 	VbSelectAndLoadKernelParams *kparams;
 	void *pvmfw_addr;
 	size_t pvmfw_size;
+	size_t pvmfw_buffer_size;
 };
 
 // To be implemented by each boot method.
