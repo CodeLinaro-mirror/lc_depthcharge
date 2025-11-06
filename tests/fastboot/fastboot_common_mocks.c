@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include "fastboot/fastboot.h"
+#include "mocks/cbmem_console.h"
 #include "tests/fastboot/fastboot_common_mocks.h"
 #include "tests/test.h"
 
@@ -25,6 +26,7 @@ void setup_test_fb(void)
 	memset(&test_fb, 0, sizeof(test_fb));
 	test_fb.send_packet = fb_mock_send_packet;
 	test_fb.state = COMMAND;
+	cbmem_console_snapshots_count = 0;
 }
 
 /* Setup fb, so only functions that explicitly call this can use disk and gpt */
