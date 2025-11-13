@@ -79,8 +79,6 @@ void commandline_append(const char *param)
 int commandline_subst(const char *src, char *dest, size_t dest_size,
 		      const struct commandline_info *info)
 {
-	static const char cros_secure[] = "cros_secure ";
-	const int cros_secure_size = sizeof(cros_secure) - 1;
 	int devnum = info->devnum;
 	int partnum = info->partnum;
 
@@ -106,11 +104,6 @@ int commandline_subst(const char *src, char *dest, size_t dest_size,
 		printf("update_cmdline: Out of space.\n"); \
 		return 1; \
 	}
-
-	// Prepend "cros_secure " to the command line.
-	CHECK_SPACE(cros_secure_size);
-	memcpy(dest, cros_secure, cros_secure_size);
-	dest += (cros_secure_size);
 
 	int c;
 
