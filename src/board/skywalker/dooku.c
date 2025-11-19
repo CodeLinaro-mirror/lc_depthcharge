@@ -3,5 +3,5 @@
 #include "board/skywalker/include/variant.h"
 
 const char *const rts545x_configs[PDC_PORT_NUM] = {
-	RTS545X_PS8747,
+	RTS545XVB_PS8747,
 };
