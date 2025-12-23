@@ -442,7 +442,8 @@ typedef enum {
 	UFS_UNIPRO_VERSION_1_6 = 3,	/* v1.6 */
 	UFS_UNIPRO_VERSION_1_61 = 4,	/* v1.61 */
 	UFS_UNIPRO_VERSION_1_8 = 5,	/* v1.8 */
-	UFS_UNIPRO_VERSION_MAX = 6,	/* unsupported */
+	UFS_UNIPRO_VERSION_2_0 = 6,	/* v2.0 */
+	UFS_UNIPRO_VERSION_MAX = 7,	/* unsupported */
 } UfsUniproVer;
 
 // UFS reference clock freq
@@ -841,5 +842,6 @@ static inline UfsDescUnit *ufs_ud(UfsDevice *ufs_dev)
 }
 
 int ufs_update(BlockDevCtrlrOps *bdev_ops);
+int ufs_pwr_mode_change(UfsCtlr *ufs);
 
 #endif //__DRIVERS_STORAGE_UFS_H__
