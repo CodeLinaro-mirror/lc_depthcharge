@@ -42,3 +42,4 @@ depthcharge-$(CONFIG_DRIVER_SOC_PANTHERLAKE) += intel_common.c
 depthcharge-$(CONFIG_DRIVER_SOC_PANTHERLAKE) += intel_gpio.c
 
 subdirs-y += cse
+subdirs-y += pmic
