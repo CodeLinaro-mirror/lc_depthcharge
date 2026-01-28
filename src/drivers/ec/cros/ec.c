@@ -1508,7 +1508,7 @@ void cros_ec_probe_aux_fw_chips(void)
 	const VbootAuxfwOps *ops;
 
 	/* List is empty, no need to probe EC */
-	if (!ec_aux_fw_chip_list.next)
+	if (list_is_empty(&ec_aux_fw_chip_list))
 		return;
 
 	ret = ec_command(cros_ec, EC_CMD_USB_PD_PORTS, 0, NULL, 0,
