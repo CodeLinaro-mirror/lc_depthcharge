@@ -43,8 +43,13 @@ static vb2_error_t ui_manual_recovery_action(struct ui_context *ui)
 		return ui_screen_change(ui, UI_SCREEN_RECOVERY_TO_DEV);
 	}
 
-	if (ui->key == UI_KEY_INTERNET_RECOVERY)
+	if (ui->key == UI_KEY_INTERNET_RECOVERY) {
 		return ui_recovery_mode_boot_minios_action(ui);
+	} else if (ui->key == UI_KEY_DEV_FASTBOOT &&
+		   (vb2api_gbb_get_flags(ui->ctx) & VB2_GBB_FLAG_FORCE_UNLOCK_FASTBOOT)) {
+		ui->key = 0;
+		return ui_developer_mode_enter_fastboot_action(ui);
+	}
 
 	if (ui->key == '\t')
 		return ui_screen_change(ui, UI_SCREEN_DEBUG_INFO);
