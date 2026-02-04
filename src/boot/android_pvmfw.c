@@ -229,9 +229,6 @@ static int create_fw_android_node(DeviceTree *ref_dtb, char *bootconfig)
 		}
 	}
 
-	/* Free the bootconfig copy */
-	free(bootconfig);
-
 	return PVMFW_SUCCESS;
 }
 
