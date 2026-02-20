@@ -944,13 +944,17 @@ static int nvme_shutdown(struct CleanupFunc *cleanup, CleanupType type)
 		case CleanupOnPowerOff:
 			printf("Shutting down NVMe controller.\n");
 			nvme_shutdown_controller(ctrlr);
+			/* fallthrough */
 		case CleanupOnLegacy:
 		case CleanupOnHandoff:
 		default:
-			printf("Disabling NVMe controller.\n");
-			status = nvme_disable_controller(ctrlr);
-			if (NVME_ERROR(status))
-				return 1;
+			if (type != CleanupOnHandoff) {
+				printf("Disabling NVMe controller.\n");
+				status = nvme_disable_controller(ctrlr);
+				if (NVME_ERROR(status))
+					return 1;
+			}
+			break;
 		}
 		ctrlr->enabled = 0;
 	}
