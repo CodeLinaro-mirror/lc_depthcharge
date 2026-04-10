@@ -26,6 +26,8 @@
 #include "drivers/power/power.h"
 #include "endian.h"
 #include "fastboot/fastboot.h"
+#include "fastboot/log.h"
+#include "fastboot/tcp.h"
 #include "net/dhcp.h"
 #include "net/net.h"
 #include "net/uip.h"
@@ -398,7 +400,11 @@ static void fastboot_tcp_net_callback(void)
 {
 	struct fastboot_tcp_session *tcp = &tcp_session;
 
+	fastboot_log_set_active(tcp->fb_session.log);
+
 	tcp->link_state = fastboot_tcp_handle_session(tcp);
+
+	fastboot_log_set_active(NULL);
 }
 
 static void fastboot_tcp_reset(struct FastbootOps *fb)
