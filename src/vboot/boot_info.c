@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <tss_constants.h>
 #include <vb2_android_bootimg.h>
+#include <vb2_sha.h>
 #include <vboot_api.h>
 
 #include "base/android_misc.h"
@@ -36,6 +37,9 @@
 #include "vboot/secdata_tpm.h"
 #include "vboot/stages.h"
 #include "vboot/util/commonparams.h"
+
+#define VBMETA_DIGEST_KEY "androidboot.vbmeta.public_key_digest"
+#define VBMETA_DIGEST_LEN (VB2_SHA256_DIGEST_SIZE * 2)
 
 /************************* CrOS Image Parsing ****************************/
 
@@ -111,6 +115,21 @@ static int gki_setup_bootconfig(struct boot_info *bi, struct vb2_kernel_params *
 	}
 
 	append_android_bootconfig_params(&bc, kp);
+
+	/*
+	 * TODO(b/487593974): Zero out 'androidboot.vbmeta.public_key_digest' in
+	 * the bootconfig buffer. This decouples Android KEK derivation from the
+	 * vbmeta signing key, allowing public key updates without breaking user
+	 * data decryption.
+	 */
+	char digest[VBMETA_DIGEST_LEN + 1];
+	memset(digest, '0', VBMETA_DIGEST_LEN);
+	digest[VBMETA_DIGEST_LEN] = '\0';
+	ret = bootconfig_update_value(&bc, VBMETA_DIGEST_KEY, digest);
+	if (ret < 0) {
+		printf("GKI: Cannot update %s\n", VBMETA_DIGEST_KEY);
+		return -1;
+	}
 
 	trailer = bootconfig_finalize(&bc,
 			sizeof(BOOTCONFIG_BOOTTIME_KEY_STR "=" BOOTCONFIG_MAX_BOOTTIME_STR) +
