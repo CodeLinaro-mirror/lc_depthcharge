@@ -448,4 +448,26 @@ int cros_ec_get_usb_pd_mux_info(int port, uint8_t *mux_state);
  */
 int cros_ec_get_usb_pd_control(int port, int *ufp, int *dbg_acc);
 
+/**
+ * Print message on the EC console.
+ *
+ * @param fmt		Format string
+ * @param ...		printf like arguments for format string
+ * @return 0 if ok, negative on error
+ */
+int cros_ec_print(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
+
+/**
+ * Print message on the EC and AP consoles
+ *
+ * This triggers an EC host command call for each invocation. Do not use during
+ * the normal boot flow to avoid boot time metric impacts. (Use only in error
+ * pathways or exceptional boot flows like ESS or aux FW sync)
+ *
+ * @param fmt		Format string
+ * @param ...		printf like arguments for format string
+ * @return 0 if ok, negative on error
+ */
+int cros_ec_ap_print(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
+
 #endif /* __DRIVERS_EC_CROS_EC_H__ */
