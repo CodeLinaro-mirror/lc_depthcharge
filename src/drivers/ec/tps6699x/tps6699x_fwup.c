@@ -61,8 +61,8 @@ static int get_appconfig_offsets(Tps6699x *me, uint16_t num_data_blocks,
 				 (const uint8_t **)&fw_size, sizeof(fw_size));
 
 	if (bytes_read < 0) {
-		printf("%s: Failed to read firmware size from binary: %d\n",
-		       me->chip_name, bytes_read);
+		cros_ec_ap_print("%s: Failed to read firmware size from binary: %d\n",
+				 me->chip_name, bytes_read);
 		return -1;
 	}
 
@@ -121,10 +121,9 @@ static int get_and_print_device_info(Tps6699x *me)
 	if (rv != 0)
 		return rv;
 
-	printf("%s: Current version %u.%u.%u\n", me->chip_name,
-	       PDC_FWVER_MAJOR(version.version),
-	       PDC_FWVER_MINOR(version.version),
-	       PDC_FWVER_PATCH(version.version));
+	cros_ec_ap_print("%s: Current version %u.%u.%u\n", me->chip_name,
+			 PDC_FWVER_MAJOR(version.version), PDC_FWVER_MINOR(version.version),
+			 PDC_FWVER_PATCH(version.version));
 
 	return 0;
 }
@@ -151,8 +150,8 @@ static int run_task_sync(Tps6699x *me, enum tps6699x_4cc_tasks task,
 	if (cmd_data) {
 		rv = tps6699x_data_reg_write(me, cmd_data);
 		if (rv) {
-			printf("%s: Cannot set command data for '%s' (%d)\n",
-			       me->chip_name, task_str, rv);
+			cros_ec_ap_print("%s: Cannot set command data for '%s' (%d)\n",
+					 me->chip_name, task_str, rv);
 			return rv;
 		}
 	}
@@ -161,8 +160,8 @@ static int run_task_sync(Tps6699x *me, enum tps6699x_4cc_tasks task,
 
 	rv = tps6699x_command_reg_write(me, &cmd);
 	if (rv) {
-		printf("%s: Cannot set command for '%s' (%d)\n", me->chip_name,
-		       task_str, rv);
+		cros_ec_ap_print("%s: Cannot set command for '%s' (%d)\n", me->chip_name,
+				 task_str, rv);
 		return rv;
 	}
 
@@ -174,8 +173,8 @@ static int run_task_sync(Tps6699x *me, enum tps6699x_4cc_tasks task,
 
 		rv = tps6699x_command_reg_read(me, &cmd);
 		if (rv) {
-			printf("%s: Cannot poll command status for '%s' (%d)\n",
-			       me->chip_name, task_str, rv);
+			cros_ec_ap_print("%s: Cannot poll command status for '%s' (%d)\n",
+					 me->chip_name, task_str, rv);
 			return rv;
 		}
 
@@ -184,38 +183,38 @@ static int run_task_sync(Tps6699x *me, enum tps6699x_4cc_tasks task,
 			break;
 		} else if (cmd.command == COMMAND_TASK_NO_COMMAND) {
 			/* Unknown command ("!CMD") */
-			printf("%s: Command '%s' is invalid\n", me->chip_name,
-			       task_str);
+			cros_ec_ap_print("%s: Command '%s' is invalid\n", me->chip_name,
+					 task_str);
 			return -1;
 		}
 
 		if (timer_us(timeout) > TPS_4CC_TIMEOUT_US) {
-			printf("%s: Command '%s' timed out\n", me->chip_name,
-			       task_str);
+			cros_ec_ap_print("%s: Command '%s' timed out\n", me->chip_name,
+					 task_str);
 			return -2;
 		}
 	}
 
-	printf("%s: Command '%s' finished...\n", me->chip_name, task_str);
+	cros_ec_ap_print("%s: Command '%s' finished...\n", me->chip_name, task_str);
 
 	/* Read out success code */
 	union reg_data cmd_data_check;
 
 	rv = tps6699x_data_reg_read(me, &cmd_data_check);
 	if (rv) {
-		printf("%s: Cannot get command result status for '%s' (%d)\n",
-		       me->chip_name, task_str, rv);
+		cros_ec_ap_print("%s: Cannot get command result status for '%s' (%d)\n",
+				 me->chip_name, task_str, rv);
 		return rv;
 	}
 
 	/* Data byte offset 0 is the return error code */
 	if (cmd_data_check.data[0] != 0) {
-		printf("%s: Command '%s' failed. Chip says %02x\n",
-		       me->chip_name, task_str, cmd_data_check.data[0]);
+		cros_ec_ap_print("%s: Command '%s' failed. Chip says %02x\n", me->chip_name,
+				 task_str, cmd_data_check.data[0]);
 		return rv;
 	}
 
-	printf("%s: Command '%s' succeeded\n", me->chip_name, task_str);
+	cros_ec_ap_print("%s: Command '%s' succeeded\n", me->chip_name, task_str);
 
 	/* Provide response data to user if a buffer is provided */
 	if (user_buf != NULL)
@@ -264,8 +263,7 @@ static int tfus_run(Tps6699x *me)
 	}
 
 	if (ret) {
-		printf("%s: Cannot write TFUs command (%d)\n", me->chip_name,
-		       ret);
+		cros_ec_ap_print("%s: Cannot write TFUs command (%d)\n", me->chip_name, ret);
 		return ret;
 	}
 
@@ -283,24 +281,23 @@ static int tfus_run(Tps6699x *me)
 		if (ret == 0) {
 			/* Got a mode result */
 			if (memcmp("F211", mode.data, sizeof(mode.data)) == 0) {
-				printf("%s: TFUs succeeded\n", me->chip_name);
+				cros_ec_ap_print("%s: TFUs succeeded\n", me->chip_name);
 				return 0;
 			}
 
 			/* Wrong mode, continue re-trying */
-			printf("%s: TFUs failed! Mode is '%c%c%c%c'\n",
-			       me->chip_name, mode.data[0], mode.data[1],
-			       mode.data[2], mode.data[3]);
+			cros_ec_ap_print("%s: TFUs failed! Mode is '%c%c%c%c'\n", me->chip_name,
+					 mode.data[0], mode.data[1], mode.data[2],
+					 mode.data[3]);
 		} else {
 			/* I2C error, continue re-trying */
-			printf("%s: Cannot read mode reg (%d)\n", me->chip_name,
-			       ret);
+			cros_ec_ap_print("%s: Cannot read mode reg (%d)\n", me->chip_name, ret);
 		}
 
 		mdelay(50);
 	} while (timer_us(start_time) < 200000);
 
-	printf("%s: TFUs timed out\n", me->chip_name);
+	cros_ec_ap_print("%s: TFUs timed out\n", me->chip_name);
 	return -1;
 }
 
@@ -319,19 +316,19 @@ static int tfud_block(Tps6699x *me, uint8_t *fbuf, int metadata_offset,
 				 TPS6699X_METADATA_LENGTH);
 
 	if (bytes_read < 0 || bytes_read != TPS6699X_METADATA_LENGTH) {
-		printf("%s: Failed to read block metadata. Wanted %d, got %d\n",
-		       me->chip_name, TPS6699X_METADATA_LENGTH, bytes_read);
+		cros_ec_ap_print("%s: Failed to read block metadata. Wanted %d, got %d\n",
+				 me->chip_name, TPS6699X_METADATA_LENGTH, bytes_read);
 		return -1;
 	}
 
-	printf("%s: TFUd Info: nblks=%u, blksize=%u, timeout=%us, addr=%x\n",
-	       me->chip_name, tfud->num_blocks, tfud->data_block_size,
-	       tfud->timeout_secs, tfud->broadcast_address);
+	cros_ec_ap_print("%s: TFUd Info: nblks=%u, blksize=%u, timeout=%us, addr=%x\n",
+			 me->chip_name, tfud->num_blocks, tfud->data_block_size,
+			 tfud->timeout_secs, tfud->broadcast_address);
 
 	if (tfud->data_block_size > TPS6699X_DATA_BLOCK_SIZE) {
-		printf("%s: TFUd block size too big: 0x%x (max is 0x%x)\n",
-		       me->chip_name, tfud->data_block_size,
-		       TPS6699X_DATA_BLOCK_SIZE);
+		cros_ec_ap_print("%s: TFUd block size too big: 0x%x (max is 0x%x)\n",
+				 me->chip_name, tfud->data_block_size,
+				 TPS6699X_DATA_BLOCK_SIZE);
 		return -1;
 	}
 
@@ -339,8 +336,8 @@ static int tfud_block(Tps6699x *me, uint8_t *fbuf, int metadata_offset,
 	ret = run_task_sync(me, COMMAND_TASK_TFUD, &cmd_data, rbuf);
 
 	if (ret < 0 || rbuf[0] != 0) {
-		printf("%s: Failed to run TFUd. Ret=%d, rbuf[0] = %u\n",
-		       me->chip_name, ret, rbuf[0]);
+		cros_ec_ap_print("%s: Failed to run TFUd. Ret=%d, rbuf[0] = %u\n",
+				 me->chip_name, ret, rbuf[0]);
 		return -1;
 	}
 
@@ -349,8 +346,8 @@ static int tfud_block(Tps6699x *me, uint8_t *fbuf, int metadata_offset,
 				 tfud->data_block_size);
 
 	if (bytes_read < 0 || bytes_read != tfud->data_block_size) {
-		printf("%s: Failed to read block. Wanted %d, got %d\n",
-		       me->chip_name, tfud->data_block_size, bytes_read);
+		cros_ec_ap_print("%s: Failed to read block. Wanted %d, got %d\n", me->chip_name,
+				 tfud->data_block_size, bytes_read);
 		return -1;
 	}
 
@@ -358,8 +355,8 @@ static int tfud_block(Tps6699x *me, uint8_t *fbuf, int metadata_offset,
 	ret = tps6699x_stream_data(me, tfud->broadcast_address, fbuf,
 				   tfud->data_block_size);
 	if (ret) {
-		printf("%s: Downloading data block failed (%d)\n",
-		       me->chip_name, ret);
+		cros_ec_ap_print("%s: Downloading data block failed (%d)\n", me->chip_name,
+				 ret);
 		return -1;
 	}
 
@@ -415,8 +412,7 @@ int tps6699x_perform_fw_update(Tps6699x *me)
 
 	ret = tfus_run(me);
 	if (ret) {
-		printf("%s: Cannot enter bootloader mode (%d)\n", me->chip_name,
-		       ret);
+		cros_ec_ap_print("%s: Cannot enter bootloader mode (%d)\n", me->chip_name, ret);
 		return ret;
 	}
 
@@ -429,20 +425,20 @@ int tps6699x_perform_fw_update(Tps6699x *me)
 				      (const uint8_t **)&tfui,
 				      TPS6699X_METADATA_LENGTH);
 	if (bytes_read < 0) {
-		printf("%s: Failed to read metadata. Wanted %d, got %d\n",
-		       me->chip_name, TPS6699X_METADATA_LENGTH, bytes_read);
+		cros_ec_ap_print("%s: Failed to read metadata. Wanted %d, got %d\n",
+				 me->chip_name, TPS6699X_METADATA_LENGTH, bytes_read);
 		goto cleanup;
 	}
 
-	printf("%s: Sending TFUi\n", me->chip_name);
+	cros_ec_ap_print("%s: Sending TFUi\n", me->chip_name);
 
 	/* Write TFUi with header. */
 	memcpy(cmd_data.data, tfui, sizeof(*tfui));
 	ret = run_task_sync(me, COMMAND_TASK_TFUI, &cmd_data, rbuf);
 
 	if (ret < 0 || rbuf[0] != 0) {
-		printf("%s: Failed to run TFUi. Ret=%d, rbuf[0]=%u\n",
-		       me->chip_name, ret, rbuf[0]);
+		cros_ec_ap_print("%s: Failed to run TFUi. Ret=%d, rbuf[0]=%u\n", me->chip_name,
+				 ret, rbuf[0]);
 		goto cleanup;
 	}
 
@@ -451,68 +447,64 @@ int tps6699x_perform_fw_update(Tps6699x *me)
 				      (const uint8_t **)&fbuf,
 				      TPS6699X_HEADER_BLOCK_LENGTH);
 	if (bytes_read < 0 || bytes_read != TPS6699X_HEADER_BLOCK_LENGTH) {
-		printf("%s: Failed to read header stream. Wanted %d but got "
-		       "%d\n",
-		       me->chip_name, TPS6699X_HEADER_BLOCK_LENGTH, bytes_read);
+		cros_ec_ap_print("%s: Failed to read header stream. Wanted %d but got %d\n",
+				 me->chip_name, TPS6699X_HEADER_BLOCK_LENGTH, bytes_read);
 		goto cleanup;
 	}
 
-	printf("%s: Streaming header to broadcast addr $%x\n", me->chip_name,
-	       tfui->broadcast_address);
+	cros_ec_ap_print("%s: Streaming header to broadcast addr $%x\n", me->chip_name,
+			 tfui->broadcast_address);
 
 	ret = tps6699x_stream_data(me, tfui->broadcast_address, fbuf,
 				   TPS6699X_HEADER_BLOCK_LENGTH);
 	if (ret) {
-		printf("%s: Streaming header failed (%d)\n", me->chip_name,
-		       ret);
+		cros_ec_ap_print("%s: Streaming header failed (%d)\n", me->chip_name, ret);
 		goto cleanup;
 	}
 
-	printf("%s: TFUi complete and header streamed. Number of blocks: %u\n",
-	       me->chip_name, tfui->num_blocks);
+	cros_ec_ap_print("%s: TFUi complete and header streamed. Number of blocks: %u\n",
+			 me->chip_name, tfui->num_blocks);
 
 	/* Wait 200ms after streaming header to do data block. */
 	mdelay(TPS_TFUI_HEADER_DELAY_MS);
 
 	/* Iterate through all image blocks. */
 	for (int block = 0; block < tfui->num_blocks; ++block) {
-		printf("%s: Flashing block %d (%d/%u)\n", me->chip_name, block,
-		       block + 1, tfui->num_blocks);
+		cros_ec_ap_print("%s: Flashing block %d (%d/%u)\n", me->chip_name, block,
+				 block + 1, tfui->num_blocks);
 		ret = tfud_block(me, fbuf, TPS_DATA_METADATA_OFFSET_AT(block),
 				 TPS_DATA_AT(block));
 		if (ret) {
-			printf("%s: Error while flashing block (%d)\n",
-			       me->chip_name, ret);
+			cros_ec_ap_print("%s: Error while flashing block (%d)\n", me->chip_name,
+					 ret);
 			goto cleanup;
 		}
 	}
 
-	printf("%s: Flashing appconfig to block %d", me->chip_name,
-	       tfui->num_blocks);
-	if (get_appconfig_offsets(me, tfui->num_blocks,
-				  &appconfig_metadata_offset,
+	cros_ec_ap_print("%s: Flashing appconfig to block %d", me->chip_name, tfui->num_blocks);
+	if (get_appconfig_offsets(me, tfui->num_blocks, &appconfig_metadata_offset,
 				  &appconfig_data_offset) < 0) {
-		printf("%s: Failed to get appconfig offsets!\n", me->chip_name);
+		cros_ec_ap_print("%s: Failed to get appconfig offsets!\n", me->chip_name);
 		goto cleanup;
 	}
 
 	ret = tfud_block(me, fbuf, appconfig_metadata_offset,
 			 appconfig_data_offset);
 	if (ret) {
-		printf("%s: Failed to write appconfig block (%d)\n",
-		       me->chip_name, ret);
+		cros_ec_ap_print("%s: Failed to write appconfig block (%d)\n", me->chip_name,
+				 ret);
 		goto cleanup;
 	}
 
 	/* Check the status with TFUq */
 	ret = tfuq_run(me, rbuf);
 	if (ret) {
-		printf("%s: Could not query FW update status (%d)\n",
-		       me->chip_name, ret);
+		cros_ec_ap_print("%s: Could not query FW update status (%d)\n", me->chip_name,
+				 ret);
 		goto cleanup;
 	}
 
-	printf("%s: Raw TFUq response:\n", me->chip_name);
+	cros_ec_ap_print("%s: Raw TFUq response:\n", me->chip_name);
 	hexdump(rbuf, sizeof(struct tps6699x_tfu_query_output));
 
 	/* Finish update with a TFU copy. */
@@ -520,13 +512,13 @@ int tps6699x_perform_fw_update(Tps6699x *me)
 	tfuc.do_switch = 0;
 	tfuc.do_copy = TPS6699X_DO_COPY;
 
-	printf("%s: Running TFUc [Switch: 0x%02x, Copy: 0x%02x]\n",
-	       me->chip_name, tfuc.do_switch, tfuc.do_copy);
+	cros_ec_ap_print("%s: Running TFUc [Switch: 0x%02x, Copy: 0x%02x]\n", me->chip_name,
+			 tfuc.do_switch, tfuc.do_copy);
 	memcpy(cmd_data.data, &tfuc, sizeof(tfuc));
 	ret = run_task_sync(me, COMMAND_TASK_TFUC, &cmd_data, rbuf);
 
 	if (ret < 0 || rbuf[0] != 0) {
-		printf("%s: Failed 4cc task with result %d, rbuf[0] = %d\n",
+		cros_ec_ap_print("%s: Failed 4cc task with result %d, rbuf[0] = %d\n",
 		       me->chip_name, ret, rbuf[0]);
 		goto cleanup;
 	}
@@ -546,8 +538,8 @@ int tps6699x_perform_fw_update(Tps6699x *me)
 cleanup:
 	ret = run_task_sync(me, COMMAND_TASK_TFUE, NULL, rbuf);
 
-	printf("%s: Cleaning up resulted in ret=%d and result byte=0x%02x\n",
-	       me->chip_name, ret, rbuf[0]);
+	cros_ec_ap_print("%s: Cleaning up resulted in ret=%d and result byte=0x%02x\n",
+			 me->chip_name, ret, rbuf[0]);
 
 	/* Reset and confirm we restored original firmware. */
 	do_reset_pdc(me);
