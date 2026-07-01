@@ -2,7 +2,6 @@
 
 #include "cse_internal.h"
 #include "cse.h"
-#include "drivers/ec/cros/ec.h"
 #include "drivers/soc/common/iomap.h"
 #include "me.h"
 
@@ -1138,11 +1137,5 @@ void soc_global_reset(void)
 
 void do_global_reset(void)
 {
-	/* Use EC reset as primary global reset */
-	if (CONFIG(DRIVER_EC_CROS) && CONFIG(SOC_INTEL_CSE_SKIP_GLOBAL_RESET)) {
-		cros_ec_reboot(EC_REBOOT_FLAG_IMMEDIATE);
-		return;
-	}
-
 	soc_global_reset();
 }
