@@ -142,7 +142,6 @@ static void queue_bounce_data(Sc7180Qspi *qspi_bus, uint8_t *data,
 static void flush_chain(Sc7180Qspi *qspi_bus)
 {
 	Sc7180QspiDescriptor *desc = qspi_bus->first_descriptor;
-	uint8_t *data_addr = (void *)(uintptr_t)desc->data_address;
 	Sc7180QspiDescriptor *curr_desc;
 	uint8_t *src;
 	uint8_t *dst;
@@ -150,6 +149,8 @@ static void flush_chain(Sc7180Qspi *qspi_bus)
 	dma_transfer_chain(qspi_bus, desc);
 
 	while (desc) {
+		uint8_t *data_addr = (void *)(uintptr_t)desc->data_address;
+
 		if (desc->direction == MASTER_READ) {
 			if (desc->bounce_length == 0)
 				dcache_invalidate_by_mva(data_addr,
